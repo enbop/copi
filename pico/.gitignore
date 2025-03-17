@@ -1,0 +1,4 @@
+# Cargo build artifacts
+/target/
+**/.idea
+cfg.toml
