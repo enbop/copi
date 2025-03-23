@@ -1,5 +1,5 @@
 [workspace]
 resolver = "2"
-members = ["copi", "copi-command"]
+members = ["copi", "copi-protocol"]
 
 exclude = ["pico"]

@@ -1,7 +1,7 @@
 #![no_std]
 #![no_main]
 
-use copi_command;
+use copi_protocol;
 use defmt::{info, panic, unwrap};
 use embassy_executor::Spawner;
 use embassy_rp::bind_interrupts;
@@ -120,9 +120,9 @@ async fn handle_class<'d, T: Instance + 'd>(
         let data = &buf[..n];
         info!("data: {} - {:x}", n, data);
 
-        if let Ok(command) = minicbor::decode::<copi_command::Command>(data) {
+        if let Ok(command) = minicbor::decode::<copi_protocol::Command>(data) {
             match command {
-                copi_command::Command::SetPWM {
+                copi_protocol::Command::SetPWM {
                     name,
                     period,
                     duty_cycle,
@@ -134,7 +134,7 @@ async fn handle_class<'d, T: Instance + 'd>(
                     // pwm.set_period(period);
                     // pwm.set_duty_cycle(SetDutyCycle::new(name, duty_cycle));
                 }
-                copi_command::Command::SetGPIO { rid, pin, state } => {
+                copi_protocol::Command::SetGPIO { rid, pin, state } => {
                     info!("SetGPIO: {} {}", pin, state);
                     // let pin = PIN_4;
                     // pin.set_high();

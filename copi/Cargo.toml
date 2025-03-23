@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-copi-command = { path = "../copi-command" }
+copi-protocol = { path = "../copi-protocol" }
 minicbor = { version = "0.26.1", features = ["derive"] }
 tokio = { version = "1", features = ["full"] }
 tokio-serial = "5.4.5"

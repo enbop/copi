@@ -136,7 +136,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "copi-command"
+name = "copi-protocol"
 version = "0.1.0"
 dependencies = [
  "minicbor",
@@ -968,7 +968,7 @@ dependencies = [
 name = "pico"
 version = "0.1.0"
 dependencies = [
- "copi-command",
+ "copi-protocol",
  "cortex-m",
  "cortex-m-rt",
  "defmt",

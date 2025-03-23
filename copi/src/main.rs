@@ -5,7 +5,7 @@ use std::{
 };
 
 use axum::{Json, Router, extract::State, routing::post};
-use copi_command::Command;
+use copi_protocol::Command;
 use serde::{Deserialize, Serialize};
 use tokio::io::AsyncReadExt;
 use tokio_serial::{SerialPortBuilderExt as _, SerialStream};

@@ -216,7 +216,7 @@ name = "copi"
 version = "0.1.0"
 dependencies = [
  "axum",
- "copi-command",
+ "copi-protocol",
  "env_logger",
  "log",
  "minicbor",
@@ -227,7 +227,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "copi-command"
+name = "copi-protocol"
 version = "0.1.0"
 dependencies = [
  "minicbor",
