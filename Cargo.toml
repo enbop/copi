@@ -2,4 +2,4 @@
 resolver = "2"
 members = ["copi", "copi-protocol"]
 
-exclude = ["pico"]
+exclude = ["firmware/rp2040"]
