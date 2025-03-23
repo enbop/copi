@@ -32,9 +32,17 @@ embassy-time = { git = "https://github.com/embassy-rs/embassy", rev = "38f26137f
     "defmt",
     "defmt-timestamp-uptime",
 ] }
+embassy-usb = { git = "https://github.com/embassy-rs/embassy", rev = "38f26137fc67beb874aa73c9a7ab2150d9f3d372", features = [
+    "defmt",
+] }
+static_cell = "2.1"
+portable-atomic = { version = "1.5", features = ["critical-section"] }
 defmt-rtt = "0.4"
 panic-probe = { version = "0.3", features = ["print-defmt"] }
 cortex-m-rt = "0.7.0"
+
+minicbor = { version = "0.26.1", features = ["derive"] }
+copi-protocol = { path = "../../copi-protocol" }
 
 [profile.release]
 debug = 2
