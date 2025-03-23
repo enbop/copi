@@ -1,0 +1,44 @@
+[package]
+name = "copi-firmware-rp235x"
+version = "0.1.0"
+edition = "2024"
+
+[[bin]]
+name = "copi-firmware-rp235x"
+test = false
+bench = false
+
+# https://github.com/embassy-rs/embassy/issues/3954
+# rev = "38f26137fc67beb874aa73c9a7ab2150d9f3d372" tag = embassy-rp-v0.4.0
+
+[dependencies]
+defmt = "0.3"
+embassy-executor = { git = "https://github.com/embassy-rs/embassy", rev = "38f26137fc67beb874aa73c9a7ab2150d9f3d372", features = [
+    "task-arena-size-98304",
+    "arch-cortex-m",
+    "executor-thread",
+    "executor-interrupt",
+    "defmt",
+] }
+embassy-rp = { git = "https://github.com/embassy-rs/embassy", rev = "38f26137fc67beb874aa73c9a7ab2150d9f3d372", features = [
+    "defmt",
+    "unstable-pac",
+    "time-driver",
+    "critical-section-impl",
+    "rp235xa",
+    "binary-info",
+] }
+embassy-time = { git = "https://github.com/embassy-rs/embassy", rev = "38f26137fc67beb874aa73c9a7ab2150d9f3d372", features = [
+    "defmt",
+    "defmt-timestamp-uptime",
+] }
+defmt-rtt = "0.4"
+panic-probe = { version = "0.3", features = ["print-defmt"] }
+cortex-m-rt = "0.7.0"
+
+[profile.release]
+debug = 2
+
+[profile.dev]
+lto = true
+opt-level = "z"
