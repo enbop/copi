@@ -1,17 +1,43 @@
 #![cfg_attr(target_abi = "eabi", no_std)]
+#![cfg_attr(target_abi = "eabihf", no_std)]
 
 use minicbor::{CborLen, Decode, Encode};
 
 #[derive(Debug, Encode, Decode, CborLen, PartialEq)]
 pub enum Command {
     #[n(0)]
-    SetGPIO {
-        #[n(0)]
-        pin: u8,
+    Version {
         #[n(1)]
-        state: bool,
+        major: u16,
+        #[n(2)]
+        minor: u16,
+        #[n(3)]
+        patch: u16,
     },
     #[n(1)]
+    GetCpuFrequency {
+        #[n(0)]
+        rid: u16,
+        #[n(1)]
+        freq: u32,
+    },
+    #[n(64)]
+    SetGPIO {
+        #[n(0)]
+        rid: u16,
+        #[n(1)]
+        pin: u8,
+        #[n(2)]
+        state: bool,
+    },
+    #[n(65)]
+    GetGPIO {
+        #[n(0)]
+        rid: u16,
+        #[n(1)]
+        pin: u8,
+    },
+    #[n(66)]
     SetPWM {
         #[n(0)]
         name: u8,
@@ -26,13 +52,36 @@ pub enum Command {
 
 #[cfg(test)]
 mod tests {
+    use core::u8;
+
     use super::*;
+
+    #[test]
+    fn vaild_command_len() {
+        const MAX_LEN: usize = 64;
+        assert!(
+            minicbor::len(&Command::SetGPIO {
+                rid: u16::MAX,
+                pin: u8::MAX,
+                state: true,
+            }) < MAX_LEN
+        );
+        assert!(
+            minicbor::len(&Command::SetPWM {
+                name: u8::MAX,
+                period: u32::MAX,
+                duty_cycle: u32::MAX,
+                percent: u8::MAX,
+            }) < MAX_LEN
+        );
+    }
 
     #[test]
     fn test_command_codec() {
         let mut buf = [0u8; 64];
 
         let gpio_cmd = Command::SetGPIO {
+            rid: 0,
             pin: 1,
             state: true,
         };

@@ -1,18 +1,16 @@
 #![no_std]
 #![no_main]
 
+use copi_command;
 use defmt::{info, panic, unwrap};
 use embassy_executor::Spawner;
 use embassy_rp::bind_interrupts;
 use embassy_rp::peripherals::USB;
-use embassy_rp::peripherals::{PIN_4, PWM_SLICE2};
 use embassy_rp::pwm::{Config, Pwm, SetDutyCycle};
 use embassy_rp::usb::{Driver, Instance, InterruptHandler};
-use embassy_time::Timer;
 use embassy_usb::UsbDevice;
 use embassy_usb::class::cdc_acm::{CdcAcmClass, State};
 use embassy_usb::driver::EndpointError;
-use copi_command;
 use static_cell::StaticCell;
 use {defmt_rtt as _, panic_probe as _};
 
@@ -27,9 +25,9 @@ async fn main(spawner: Spawner) {
     // If we aim for a specific frequency, here is how we can calculate the top value.
     // The top value sets the period of the PWM cycle, so a counter goes from 0 to top and then wraps around to 0.
     // Every such wraparound is one PWM cycle. So here is how we get 25KHz:
-    let desired_freq_hz = 25_000;
+    let desired_freq_hz = 50;
     let clock_freq_hz = embassy_rp::clocks::clk_sys_freq();
-    let divider = 16u8;
+    let divider = 200u8;
     let period = (clock_freq_hz / (desired_freq_hz * divider as u32)) as u16 - 1;
 
     let mut c = Config::default();
@@ -136,10 +134,13 @@ async fn handle_class<'d, T: Instance + 'd>(
                     // pwm.set_period(period);
                     // pwm.set_duty_cycle(SetDutyCycle::new(name, duty_cycle));
                 }
-                copi_command::Command::SetGPIO { pin, state } => {
+                copi_command::Command::SetGPIO { rid, pin, state } => {
                     info!("SetGPIO: {} {}", pin, state);
                     // let pin = PIN_4;
                     // pin.set_high();
+                }
+                _ => {
+                    info!("Unknown command");
                 }
             }
         };
