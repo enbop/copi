@@ -22,7 +22,16 @@ pub enum Command {
         freq: u32,
     },
     #[n(64)]
-    SetGPIO {
+    GpioOutputInit {
+        #[n(0)]
+        rid: u16,
+        #[n(1)]
+        pin: u8,
+        #[n(2)]
+        value: bool,
+    },
+    #[n(65)]
+    GpioOutputSet {
         #[n(0)]
         rid: u16,
         #[n(1)]
@@ -30,15 +39,15 @@ pub enum Command {
         #[n(2)]
         state: bool,
     },
-    #[n(65)]
-    GetGPIO {
+    #[n(66)]
+    GpioOutputGet {
         #[n(0)]
         rid: u16,
         #[n(1)]
         pin: u8,
     },
-    #[n(66)]
-    SetPWM {
+    #[n(67)]
+    PwmSet {
         #[n(0)]
         name: u8,
         #[n(1)]

@@ -1,48 +1,45 @@
 #![no_std]
 #![no_main]
 
+mod gpio;
+mod peripherals;
+
 use defmt::{info, panic, unwrap};
 use embassy_executor::Spawner;
 use embassy_rp::{
-    bind_interrupts, gpio,
-    peripherals::USB,
-    pwm::{Pwm, SetDutyCycle as _},
-    usb::{Driver, Instance, InterruptHandler},
+    bind_interrupts,
+    peripherals::{PIO0, USB},
+    usb::{Driver, Instance},
 };
-use embassy_time::Timer;
 use embassy_usb::{
     UsbDevice,
     class::cdc_acm::{CdcAcmClass, State},
     driver::EndpointError,
 };
-use gpio::{Level, Output};
+use peripherals::PeripheralController;
 use static_cell::StaticCell;
 use {defmt_rtt as _, panic_probe as _};
 
 bind_interrupts!(struct Irqs {
-    USBCTRL_IRQ => InterruptHandler<USB>;
+    USBCTRL_IRQ => embassy_rp::usb::InterruptHandler<USB>;
+    PIO0_IRQ_0 => embassy_rp::pio::InterruptHandler<PIO0>;
 });
 
 // Program metadata for `picotool info`.
-// This isn't needed, but it's recomended to have these minimal entries.
 #[unsafe(link_section = ".bi_entries")]
 #[used]
 pub static PICOTOOL_ENTRIES: [embassy_rp::binary_info::EntryAddr; 4] = [
-    embassy_rp::binary_info::rp_program_name!(c"Blinky Example"),
-    embassy_rp::binary_info::rp_program_description!(
-        c"This example tests the RP Pico on board LED, connected to gpio 25"
-    ),
+    embassy_rp::binary_info::rp_program_name!(c"copi-firmware"),
+    embassy_rp::binary_info::rp_program_description!(c""),
     embassy_rp::binary_info::rp_cargo_version!(),
     embassy_rp::binary_info::rp_program_build_attribute!(),
 ];
 
 #[embassy_executor::main]
 async fn main(spawner: Spawner) {
-    let p = embassy_rp::init(Default::default());
+    let p: embassy_rp::Peripherals = embassy_rp::init(Default::default());
 
-    // run the led task
-    let led = Output::new(p.PIN_25, Level::Low);
-    unwrap!(spawner.spawn(led_task(led)));
+    let mut pc = PeripheralController::new();
 
     // Create the driver, from the HAL.
     let driver = Driver::new(p.USB, Irqs);
@@ -89,40 +86,12 @@ async fn main(spawner: Spawner) {
     // Run the USB device.
     unwrap!(spawner.spawn(usb_task(usb)));
 
-    // If we aim for a specific frequency, here is how we can calculate the top value.
-    // The top value sets the period of the PWM cycle, so a counter goes from 0 to top and then wraps around to 0.
-    // Every such wraparound is one PWM cycle. So here is how we get 25KHz:
-    let desired_freq_hz = 50;
-    let clock_freq_hz = embassy_rp::clocks::clk_sys_freq();
-    let divider = 200u8;
-    let period = (clock_freq_hz / (desired_freq_hz * divider as u32)) as u16 - 1;
-
-    let mut c = embassy_rp::pwm::Config::default();
-    c.top = period;
-    c.divider = divider.into();
-    let mut pwm: Pwm<'_> = Pwm::new_output_a(p.PWM_SLICE2, p.PIN_4, c.clone());
-
-    pwm.set_duty_cycle_percent(66).unwrap();
-
     // Do stuff with the class!
     loop {
         class.wait_connection().await;
         info!("Connected");
-        let _ = handle_class(&mut class, &mut pwm).await;
+        let _ = handle_class(&mut class, &mut pc).await;
         info!("Disconnected");
-    }
-}
-
-#[embassy_executor::task]
-async fn led_task(mut led: Output<'static>) {
-    loop {
-        info!("led on!");
-        led.set_high();
-        Timer::after_millis(1500).await;
-
-        info!("led off!");
-        led.set_low();
-        Timer::after_millis(1500).await;
     }
 }
 
@@ -147,8 +116,9 @@ impl From<EndpointError> for Disconnected {
 
 async fn handle_class<'d, T: Instance + 'd>(
     class: &mut CdcAcmClass<'d, Driver<'d, T>>,
-    pwm: &mut Pwm<'_>,
+    pc: &mut PeripheralController<'d>,
 ) -> Result<(), Disconnected> {
+    use copi_protocol::Command::*;
     let mut buf = [0; 64];
     loop {
         let n = class.read_packet(&mut buf).await?;
@@ -157,22 +127,13 @@ async fn handle_class<'d, T: Instance + 'd>(
 
         if let Ok(command) = minicbor::decode::<copi_protocol::Command>(data) {
             match command {
-                copi_protocol::Command::SetPWM {
-                    name,
-                    period,
-                    duty_cycle,
-                    percent,
-                } => {
-                    info!("SetPWM: {} {} {} {}", name, period, duty_cycle, percent);
-                    pwm.set_duty_cycle_percent(percent).unwrap();
-                    // let pwm = Pwm::new(PWM_SLICE2, Config::default());
-                    // pwm.set_period(period);
-                    // pwm.set_duty_cycle(SetDutyCycle::new(name, duty_cycle));
+                GpioOutputInit { rid, pin, value } => {
+                    info!("GpioOutputInit: {} {}", pin, value);
+                    pc.gpio_output_init(pin as _, value);
                 }
-                copi_protocol::Command::SetGPIO { rid, pin, state } => {
-                    info!("SetGPIO: {} {}", pin, state);
-                    // let pin = PIN_4;
-                    // pin.set_high();
+                GpioOutputSet { rid, pin, state } => {
+                    info!("GpioOutputSet: {} {}", pin, state);
+                    pc.gpio_output_set(pin as _, state);
                 }
                 _ => {
                     info!("Unknown command");

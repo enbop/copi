@@ -13,14 +13,14 @@ bench = false
 
 [dependencies]
 defmt = "0.3"
-embassy-executor = { git = "https://github.com/embassy-rs/embassy", rev = "38f26137fc67beb874aa73c9a7ab2150d9f3d372", features = [
+embassy-executor = { git = "https://github.com/enbop/embassy", rev = "f65f5cf841865a8d901d7fc3191d4046d6e921c4", features = [
     "task-arena-size-98304",
     "arch-cortex-m",
     "executor-thread",
     "executor-interrupt",
     "defmt",
 ] }
-embassy-rp = { git = "https://github.com/embassy-rs/embassy", rev = "38f26137fc67beb874aa73c9a7ab2150d9f3d372", features = [
+embassy-rp = { git = "https://github.com/enbop/embassy", rev = "f65f5cf841865a8d901d7fc3191d4046d6e921c4", features = [
     "defmt",
     "unstable-pac",
     "time-driver",
@@ -28,11 +28,11 @@ embassy-rp = { git = "https://github.com/embassy-rs/embassy", rev = "38f26137fc6
     "rp235xa",
     "binary-info",
 ] }
-embassy-time = { git = "https://github.com/embassy-rs/embassy", rev = "38f26137fc67beb874aa73c9a7ab2150d9f3d372", features = [
+embassy-time = { git = "https://github.com/enbop/embassy", rev = "f65f5cf841865a8d901d7fc3191d4046d6e921c4", features = [
     "defmt",
     "defmt-timestamp-uptime",
 ] }
-embassy-usb = { git = "https://github.com/embassy-rs/embassy", rev = "38f26137fc67beb874aa73c9a7ab2150d9f3d372", features = [
+embassy-usb = { git = "https://github.com/enbop/embassy", rev = "f65f5cf841865a8d901d7fc3191d4046d6e921c4", features = [
     "defmt",
 ] }
 static_cell = "2.1"
