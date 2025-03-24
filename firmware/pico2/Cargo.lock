@@ -145,7 +145,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "copi-firmware-rp235x"
+name = "copi-firmware-pico2"
 version = "0.1.0"
 dependencies = [
  "copi-protocol",

@@ -1,11 +1,11 @@
 [package]
 edition = "2024"
-name = "copi-firmware-rp2040"
+name = "copi-firmware-pico"
 version = "0.1.0"
 resolver = "2"
 
 [[bin]]
-name = "copi-firmware-rp2040"
+name = "copi-firmware-pico"
 test = false
 bench = false
 

@@ -1,10 +1,10 @@
 [package]
-name = "copi-firmware-rp235x"
+name = "copi-firmware-pico2"
 version = "0.1.0"
 edition = "2024"
 
 [[bin]]
-name = "copi-firmware-rp235x"
+name = "copi-firmware-pico2"
 test = false
 bench = false
 
