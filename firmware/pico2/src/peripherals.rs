@@ -28,15 +28,15 @@ pub enum PinState {
     PwmIn,
 }
 
-pub struct PinArray<T> {
-    pins: [Option<T>; 30],
+pub struct Slot<T, const N: usize> {
+    array: [Option<T>; N],
     size: u8,
 }
 
-impl<T> PinArray<T> {
+impl<T, const N: usize> Slot<T, N> {
     pub fn new() -> Self {
         Self {
-            pins: [const { None }; 30],
+            array: [const { None }; N],
             size: 0,
         }
     }
@@ -50,9 +50,9 @@ impl<T> PinArray<T> {
         if self.size >= 16 {
             return None;
         }
-        for i in 0..self.pins.len() {
-            if self.pins[i].is_none() {
-                self.pins[i] = Some(pin);
+        for i in 0..self.array.len() {
+            if self.array[i].is_none() {
+                self.array[i] = Some(pin);
                 assert_eq!(self.size as usize, i);
                 self.size += 1;
                 return Some(i);
@@ -62,10 +62,10 @@ impl<T> PinArray<T> {
     }
 
     pub fn remove(&mut self, index: usize) -> bool {
-        if index >= self.pins.len() {
+        if index >= self.array.len() {
             return false;
         }
-        let old = self.pins[index].take();
+        let old = self.array[index].take();
         if old.is_none() {
             return false;
         }
@@ -102,7 +102,7 @@ pub struct PeripheralController<'d> {
     embassy_rp: embassy_rp::Peripherals,
     pins: [Pin; 30],
 
-    gpio_output: PinArray<Output<'d>>,
+    gpio_output: Slot<Output<'d>, 30>,
 }
 
 impl PeripheralController<'_> {
@@ -144,7 +144,7 @@ impl PeripheralController<'_> {
                     Pin::new(embassy_rp.PIN_29.clone_unchecked().degrade()),
                 ],
                 embassy_rp,
-                gpio_output: PinArray::new(),
+                gpio_output: Slot::new(),
             }
         };
         this
@@ -182,7 +182,7 @@ impl PeripheralController<'_> {
         if pin.state != PinState::GpioOutput {
             return false;
         }
-        let output = &mut self.gpio_output.pins[pin.resource_index];
+        let output = &mut self.gpio_output.array[pin.resource_index];
         assert!(output.is_some());
         if value {
             output.as_mut().unwrap().set_high();
