@@ -47,14 +47,31 @@ pub enum Command {
         pin: u8,
     },
     #[n(67)]
-    PwmSet {
+    PwmInit {
         #[n(0)]
-        name: u8,
+        rid: u16,
         #[n(1)]
-        period: u32,
+        slice: u8,
         #[n(2)]
-        duty_cycle: u32,
+        a: Option<u8>,
         #[n(3)]
+        b: Option<u8>,
+        #[n(4)]
+        divider: u8,
+        #[n(5)]
+        compare_a: u16,
+        #[n(6)]
+        compare_b: u16,
+        #[n(7)]
+        top: u16,
+    },
+    #[n(68)]
+    PwmSetDutyCyclePercent {
+        #[n(0)]
+        rid: u16,
+        #[n(1)]
+        pin: u8,
+        #[n(2)]
         percent: u8,
     },
 }
@@ -69,18 +86,15 @@ mod tests {
     fn vaild_command_len() {
         const MAX_LEN: usize = 64;
         assert!(
-            minicbor::len(&Command::SetGPIO {
+            minicbor::len(&Command::PwmInit {
                 rid: u16::MAX,
-                pin: u8::MAX,
-                state: true,
-            }) < MAX_LEN
-        );
-        assert!(
-            minicbor::len(&Command::SetPWM {
-                name: u8::MAX,
-                period: u32::MAX,
-                duty_cycle: u32::MAX,
-                percent: u8::MAX,
+                slice: u8::MAX,
+                a: Some(u8::MAX),
+                b: Some(u8::MAX),
+                divider: u8::MAX,
+                compare_a: u16::MAX,
+                compare_b: u16::MAX,
+                top: u16::MAX,
             }) < MAX_LEN
         );
     }
@@ -89,7 +103,7 @@ mod tests {
     fn test_command_codec() {
         let mut buf = [0u8; 64];
 
-        let gpio_cmd = Command::SetGPIO {
+        let gpio_cmd = Command::GpioOutputSet {
             rid: 0,
             pin: 1,
             state: true,
@@ -102,20 +116,5 @@ mod tests {
         let decoded_cmd: Command = minicbor::decode(&encoded_data).unwrap();
         println!("Decoded command: {:?}", decoded_cmd);
         assert_eq!(decoded_cmd, gpio_cmd);
-
-        let pwm_cmd = Command::SetPWM {
-            name: 1,
-            period: 2,
-            duty_cycle: 3,
-            percent: 4,
-        };
-        let len = minicbor::len(&pwm_cmd);
-        minicbor::encode(&pwm_cmd, buf.as_mut()).unwrap();
-        println!("Encoded data: {:?}", &buf[..len]);
-
-        let encoded_data = &buf[..len].to_owned();
-        let decoded_cmd: Command = minicbor::decode(&encoded_data).unwrap();
-        println!("Decoded command: {:?}", decoded_cmd);
-        assert_eq!(decoded_cmd, pwm_cmd);
     }
 }

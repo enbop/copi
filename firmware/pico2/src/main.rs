@@ -1,7 +1,6 @@
 #![no_std]
 #![no_main]
 
-mod gpio;
 mod peripherals;
 mod usb;
 
@@ -67,6 +66,32 @@ async fn handle_class<'d, T: Instance + 'd>(
                 GpioOutputSet { rid, pin, state } => {
                     info!("GpioOutputSet: {} {}", pin, state);
                     pc.gpio_output_set(pin as _, state);
+                }
+                PwmInit {
+                    rid,
+                    slice,
+                    a,
+                    b,
+                    divider,
+                    compare_a,
+                    compare_b,
+                    top,
+                } => {
+                    info!(
+                        "PwmInit: {} {} {} {} {} {} {}",
+                        slice,
+                        a.unwrap_or(0),
+                        b.unwrap_or(0),
+                        divider,
+                        compare_a,
+                        compare_b,
+                        top
+                    );
+                    pc.pwm_init(slice, a, b, divider, compare_a, compare_b, top);
+                }
+                PwmSetDutyCyclePercent { rid, pin, percent } => {
+                    info!("PwmSetDutyCyclePercent: {} {} {}", rid, pin, percent);
+                    pc.pwm_set_duty_cycle_percent(pin, percent);
                 }
                 _ => {
                     info!("Unknown command");

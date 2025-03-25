@@ -1,6 +1,8 @@
 use embassy_rp::{
-    Peripheral,
-    gpio::{AnyPin, Input, Output, Pin as _},
+    Peripheral, config,
+    gpio::{AnyPin, Input, Output, Pin as _, Pull},
+    pac::pwm::vals::Divmode,
+    pwm::{Pwm, SetDutyCycle},
 };
 
 pub struct Pin {
@@ -103,6 +105,7 @@ pub struct PeripheralController<'d> {
     pins: [Pin; 30],
 
     gpio_output: Slot<Output<'d>, 30>,
+    pwm: Slot<Pwm<'d>, 8>,
 }
 
 impl PeripheralController<'_> {
@@ -145,6 +148,7 @@ impl PeripheralController<'_> {
                 ],
                 embassy_rp,
                 gpio_output: Slot::new(),
+                pwm: Slot::new(),
             }
         };
         this
@@ -190,5 +194,75 @@ impl PeripheralController<'_> {
             output.as_mut().unwrap().set_low();
         }
         true
+    }
+
+    pub fn pwm_init(
+        &mut self,
+        slice: u8,
+        a: Option<u8>,
+        b: Option<u8>,
+        divider: u8,
+        compare_a: u16,
+        compare_b: u16,
+        top: u16,
+    ) {
+        // TODO check slice and pins
+
+        let pin_a = match a {
+            Some(a) => {
+                let pin = &mut self.pins[a as usize];
+                if pin.state != PinState::None {
+                    // TODO return error
+                    None
+                } else {
+                    pin.state = PinState::PwmOut;
+                    unsafe { Some(pin.pin.clone_unchecked().into_ref()) }
+                }
+            }
+            None => None,
+        };
+
+        let pin_b = match b {
+            Some(b) => {
+                let pin = &mut self.pins[b as usize];
+                if pin.state != PinState::None {
+                    // TODO return error
+                    None
+                } else {
+                    pin.state = PinState::PwmOut;
+                    unsafe { Some(pin.pin.clone_unchecked().into_ref()) }
+                }
+            }
+            None => None,
+        };
+
+        let mut config = embassy_rp::pwm::Config::default();
+        config.divider = divider.into();
+        config.compare_a = compare_a;
+        config.compare_b = compare_b;
+        config.top = top;
+
+        let pwm = unsafe {
+            Pwm::new_inner_unchecked(slice as _, pin_a, pin_b, Pull::None, config, Divmode::DIV)
+        };
+
+        let Some(index) = self.pwm.add(pwm) else {
+            // TODO: handle error
+            return;
+        };
+        for pin in [a, b].iter() {
+            if let Some(pin) = pin {
+                self.pins[*pin as usize].resource_index = index;
+            }
+        }
+    }
+
+    pub fn pwm_set_duty_cycle_percent(&mut self, pin_num: u8, percent: u8) {
+        let pwm = &mut self.pwm.array[self.pins[pin_num as usize].resource_index];
+        assert!(pwm.is_some());
+        pwm.as_mut()
+            .unwrap()
+            .set_duty_cycle_percent(percent)
+            .unwrap();
     }
 }

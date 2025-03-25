@@ -36,7 +36,11 @@ async fn main() {
     let app = Router::new()
         .route("/gpio-output-init", post(post_gpio_output_init))
         .route("/gpio-output-set", post(post_gpio_output_set))
-        .route("/set-pwm", post(post_set_pwm))
+        .route("/pwm-init", post(post_init))
+        .route(
+            "/pwm-set-duty-cycle-percent",
+            post(post_pwm_set_duty_cycle_percent),
+        )
         .with_state(state);
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:8899").await.unwrap();
@@ -138,30 +142,81 @@ pub async fn post_gpio_output_set(
 }
 
 #[derive(Debug, Clone, Deserialize)]
-pub struct PostSetPwmReq {
-    name: u8,
-    period: u32,
-    #[serde(rename = "dutyCycle")]
-    duty_cycle: u32,
-    percent: u8,
+pub struct PostPwmInitReq {
+    slice: u8,
+    a: Option<u8>,
+    b: Option<u8>,
+    divider: u8,
+    #[serde(rename = "compareA")]
+    compare_a: u16,
+    #[serde(rename = "compareB")]
+    compare_b: u16,
+    top: u16,
 }
 
 #[derive(Debug, Clone, Serialize)]
-pub struct PostSetPwmRes {
+pub struct PostPwmInitRes {
     ok: bool,
 }
 
 #[axum::debug_handler]
-pub async fn post_set_pwm(
+pub async fn post_init(
     State(state): State<AppState>,
-    Json(req): Json<PostSetPwmReq>,
-) -> Json<PostSetPwmRes> {
+    Json(req): Json<PostPwmInitReq>,
+) -> Json<PostPwmInitRes> {
     let mut port = state.port.lock().unwrap();
 
-    let pwm_cmd = Command::PwmSet {
-        name: req.name,
-        period: req.period,
-        duty_cycle: req.duty_cycle,
+    let pwm_cmd = Command::PwmInit {
+        rid: 1,
+        slice: req.slice,
+        a: req.a,
+        b: req.b,
+        divider: req.divider,
+        compare_a: req.compare_a,
+        compare_b: req.compare_b,
+        top: req.top,
+    };
+
+    let mut buf = [0u8; MAX_USB_PACKET_SIZE];
+    let len = minicbor::len(&pwm_cmd);
+    minicbor::encode(&pwm_cmd, buf.as_mut()).unwrap();
+
+    // TODO should be async?
+    let res = match port.write_all(&buf[..len]) {
+        Ok(_) => {
+            log::info!("Sent PWM command: {:?}", pwm_cmd);
+            true
+        }
+        Err(e) => {
+            log::error!("Failed to send PWM command: {:?}", e);
+            false
+        }
+    };
+
+    Json(PostPwmInitRes { ok: res })
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct PostPwmSetDutyCyclePercentReq {
+    pin: u8,
+    percent: u8,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct PostPwmSetDutyCyclePercentRes {
+    ok: bool,
+}
+
+#[axum::debug_handler]
+pub async fn post_pwm_set_duty_cycle_percent(
+    State(state): State<AppState>,
+    Json(req): Json<PostPwmSetDutyCyclePercentReq>,
+) -> Json<PostPwmSetDutyCyclePercentRes> {
+    let mut port = state.port.lock().unwrap();
+
+    let pwm_cmd = Command::PwmSetDutyCyclePercent {
+        rid: 1,
+        pin: req.pin,
         percent: req.percent,
     };
 
@@ -181,5 +236,5 @@ pub async fn post_set_pwm(
         }
     };
 
-    Json(PostSetPwmRes { ok: res })
+    Json(PostPwmSetDutyCyclePercentRes { ok: res })
 }
