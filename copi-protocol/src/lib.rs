@@ -74,6 +74,76 @@ pub enum Command {
         #[n(2)]
         percent: u8,
     },
+    #[n(69)]
+    PioLoadProgram {
+        #[n(0)]
+        rid: u16,
+        #[n(1)]
+        pio_num: u8,
+        // TODO currently only supports 32 byte programs (16 instructions)
+        #[cbor(n(2), with = "minicbor::bytes")]
+        program: [u8; 32],
+        #[n(3)]
+        program_len: u8,
+        #[n(4)]
+        origin: Option<u8>,
+        #[n(5)]
+        wrap_source: u8,
+        #[n(6)]
+        wrap_target: u8,
+        #[n(7)]
+        side_set_opt: bool,
+        #[n(8)]
+        side_set_bits: u8,
+        #[n(9)]
+        side_set_pindirs: bool,
+        #[n(10)]
+        pio_version_v0: bool,
+    },
+    #[n(70)]
+    PioSmInit {
+        #[n(0)]
+        rid: u16,
+        #[n(1)]
+        pio_num: u8,
+        #[n(2)]
+        sm_num: u8,
+        #[n(3)]
+        pin_num: u8,
+    },
+    #[n(71)]
+    PioSmSetEnable {
+        #[n(0)]
+        rid: u16,
+        #[n(1)]
+        pio_num: u8,
+        #[n(2)]
+        sm_num: u8,
+        #[n(3)]
+        enable: bool,
+    },
+    #[n(72)]
+    PioSmPush {
+        #[n(0)]
+        rid: u16,
+        #[n(1)]
+        pio_num: u8,
+        #[n(2)]
+        sm_num: u8,
+        #[n(3)]
+        instr: u32,
+    },
+    #[n(73)]
+    PioSmExecInstr {
+        #[n(0)]
+        rid: u16,
+        #[n(1)]
+        pio_num: u8,
+        #[n(2)]
+        sm_num: u8,
+        #[n(3)]
+        exec_instr: u16,
+    },
 }
 
 #[cfg(test)]

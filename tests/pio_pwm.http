@@ -1,0 +1,79 @@
+### 1. load program (PWM)
+POST http://127.0.0.1:8899/pio/load_program
+content-type: application/json
+
+{
+    "pioNum": 0,
+    "program": ".side_set 1 opt\npull noblock    side 0\nmov x, osr\nmov y, isr\ncountloop:\njmp x!=y noset\njmp skip        side 1\nnoset:\nnop\nskip:\njmp y-- countloop \n"
+}
+
+### 2. init state machine0 
+POST http://127.0.0.1:8899/pio/sm_init
+content-type: application/json
+
+{
+    "pioNum": 0,
+    "smNum": 0,
+    "pinNum": 25
+}
+
+### 3. (set_period) push period to FIFO
+POST http://127.0.1:8899/pio/sm_push
+content-type: application/json
+
+{
+    "pioNum": 0,
+    "smNum": 0,
+    "instr": 1000000
+}
+
+
+### 4. (set_period) exec_instr (1) InstructionOperands::PULL
+POST http://127.0.1:8899/pio/sm_exec_instr
+content-type: application/json
+
+{
+    "pioNum": 0,
+    "smNum": 0,
+    "execInstr": 32896
+}
+
+### 5. (set_period) exec_instr (2) InstructionOperands::OUT
+POST http://127.0.1:8899/pio/sm_exec_instr
+content-type: application/json
+
+{
+    "pioNum": 0,
+    "smNum": 0,
+    "execInstr": 24768
+}
+
+### 6. enable sm0
+POST http://127.0.1:8899/pio/sm_set_enabled
+content-type: application/json
+
+{
+    "pioNum": 0,
+    "smNum": 0,
+    "enabled": true
+}
+
+### 7. set duty cycle (10%)
+POST http://127.0.1:8899/pio/sm_push
+content-type: application/json
+
+{
+    "pioNum": 0,
+    "smNum": 0,
+    "instr": 100000
+}
+
+### 7. set duty cycle (80%)
+POST http://127.0.1:8899/pio/sm_push
+content-type: application/json
+
+{
+    "pioNum": 0,
+    "smNum": 0,
+    "instr": 800000
+}

@@ -1,9 +1,13 @@
+use defmt::info;
 use embassy_rp::{
-    Peripheral, config,
-    gpio::{AnyPin, Input, Output, Pin as _, Pull},
+    Peripheral,
+    gpio::{AnyPin, Output, Pin as _, Pull},
     pac::pwm::vals::Divmode,
+    pio::{Direction, LoadedProgram, Pio, StateMachine, program::Program},
     pwm::{Pwm, SetDutyCycle},
 };
+
+use crate::{pio::PioControl, pio_run_with_program, pio_sm_invoke, pio_sm_run, sm_invoke, sm_run};
 
 pub struct Pin {
     pin: AnyPin,
@@ -28,6 +32,7 @@ pub enum PinState {
     GpioOutput,
     PwmOut,
     PwmIn,
+    Pio0,
 }
 
 pub struct Slot<T, const N: usize> {
@@ -104,11 +109,12 @@ pub struct PeripheralController<'d> {
     embassy_rp: embassy_rp::Peripherals,
     pins: [Pin; 30],
 
-    gpio_output: Slot<Output<'d>, 30>,
-    pwm: Slot<Pwm<'d>, 8>,
+    gpio_outputs: Slot<Output<'d>, 30>,
+    pwms: Slot<Pwm<'d>, 8>,
+    pios: PioControl<'d>,
 }
 
-impl PeripheralController<'_> {
+impl<'d> PeripheralController<'d> {
     pub fn new() -> Self {
         let this = unsafe {
             let embassy_rp = embassy_rp::Peripherals::steal();
@@ -147,8 +153,9 @@ impl PeripheralController<'_> {
                     Pin::new(embassy_rp.PIN_29.clone_unchecked().degrade()),
                 ],
                 embassy_rp,
-                gpio_output: Slot::new(),
-                pwm: Slot::new(),
+                gpio_outputs: Slot::new(),
+                pwms: Slot::new(),
+                pios: PioControl::init(),
             }
         };
         this
@@ -170,7 +177,7 @@ impl PeripheralController<'_> {
                     embassy_rp::gpio::Level::Low
                 },
             );
-            let Some(index) = self.gpio_output.add(output) else {
+            let Some(index) = self.gpio_outputs.add(output) else {
                 // TODO: handle error
                 return false;
             };
@@ -186,7 +193,7 @@ impl PeripheralController<'_> {
         if pin.state != PinState::GpioOutput {
             return false;
         }
-        let output = &mut self.gpio_output.array[pin.resource_index];
+        let output = &mut self.gpio_outputs.array[pin.resource_index];
         assert!(output.is_some());
         if value {
             output.as_mut().unwrap().set_high();
@@ -246,7 +253,7 @@ impl PeripheralController<'_> {
             Pwm::new_inner_unchecked(slice as _, pin_a, pin_b, Pull::None, config, Divmode::DIV)
         };
 
-        let Some(index) = self.pwm.add(pwm) else {
+        let Some(index) = self.pwms.add(pwm) else {
             // TODO: handle error
             return;
         };
@@ -258,11 +265,85 @@ impl PeripheralController<'_> {
     }
 
     pub fn pwm_set_duty_cycle_percent(&mut self, pin_num: u8, percent: u8) {
-        let pwm = &mut self.pwm.array[self.pins[pin_num as usize].resource_index];
+        let pwm = &mut self.pwms.array[self.pins[pin_num as usize].resource_index];
         assert!(pwm.is_some());
         pwm.as_mut()
             .unwrap()
             .set_duty_cycle_percent(percent)
             .unwrap();
+    }
+
+    pub fn pio_load_program(&mut self, pio_num: usize, program: Program<16>) -> bool {
+        for i in &program.code {
+            info!("pio_load_program: {}", i);
+        }
+        #[rustfmt::skip]
+        pio_run_with_program!(
+            self.pios,
+            pio_num,
+            |pio: &mut Pio<'d, _>, p: &mut Option<LoadedProgram<'d, _>>| {
+                let p1 = pio.common.load_program(&program);
+                // TODO check existing program
+                p.replace(p1);
+            }
+        );
+        true
+    }
+
+    pub fn pio_sm_init(&mut self, pio_num: usize, sm_num: usize, pin_num: u8) -> bool {
+        let pin = &mut self.pins[pin_num as usize];
+        if pin.state != PinState::None {
+            return false;
+        }
+        pin.state = PinState::Pio0;
+        let any_pin = unsafe { pin.pin.clone_unchecked() };
+
+        #[rustfmt::skip]
+        pio_run_with_program!(
+            self.pios,
+            pio_num,
+            |pio: &mut Pio<'d, _>, p: &mut Option<LoadedProgram<'d, _>>| {
+                let pin = pio.common.make_pio_pin(any_pin);
+                let mut cfg = embassy_rp::pio::Config::default();
+                cfg.use_program(p.as_ref().unwrap(), &[&pin]);
+                sm_invoke!(pio, sm_num, set_config, &cfg);
+
+                // TODO use other functions
+                // sm.set_pins(Level::High, &[&pin]);
+                // sm.set_pin_dirs(Direction::Out, &[&pin]);
+                // sm_invoke!(pio, sm_num, set_pins, Level::High, &[&pin]);
+                sm_invoke!(pio, sm_num, set_pin_dirs, Direction::Out, &[&pin]);
+            }
+        );
+        true
+    }
+
+    pub fn pio_sm_set_enable(&mut self, pio_num: usize, sm_num: usize, enable: bool) -> bool {
+        pio_sm_invoke!(self.pios, pio_num, sm_num, set_enable, enable);
+        true
+    }
+
+    pub fn pio_sm_push(&mut self, pio_num: usize, sm_num: usize, instr: u32) -> bool {
+        #[rustfmt::skip]
+        pio_sm_run!(
+            self.pios,
+            pio_num,
+            sm_num,
+            |sm: &mut StateMachine<'d, _, _>| {
+                sm.tx().push(instr);
+            }
+        );
+        true
+    }
+
+    pub unsafe fn pio_sm_exec_instr_unchecked(
+        &mut self,
+        pio_num: usize,
+        sm_num: usize,
+        instr: u16,
+    ) {
+        unsafe {
+            pio_sm_invoke!(self.pios, pio_num, sm_num, exec_instr, instr);
+        }
     }
 }
