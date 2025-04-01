@@ -8,9 +8,11 @@ use tokio::{
 };
 
 mod api;
+// #[cfg(target_os = "android")]
+pub mod mobile;
 mod types;
 
-const MAX_USB_PACKET_SIZE: usize = 64;
+pub const MAX_USB_PACKET_SIZE: usize = 64;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -24,37 +26,35 @@ impl AppState {
 }
 
 #[cfg(any(target_os = "macos", target_os = "linux"))]
-pub fn start_usb_cdc_service(mut cmd_rx: UnboundedReceiver<Command>) {
+pub async fn start_usb_cdc_service(mut cmd_rx: UnboundedReceiver<Command>) {
     use tokio_serial::SerialPortBuilderExt as _;
 
     let mut port = tokio_serial::new("/dev/tty.usbmodem123456781", 0)
         .open_native_async()
         .unwrap();
 
-    tokio::spawn(async move {
-        let mut buf = [0u8; MAX_USB_PACKET_SIZE];
-        loop {
-            match cmd_rx.recv().await {
-                Some(cmd) => {
-                    let len = minicbor::len(&cmd);
-                    minicbor::encode(&cmd, buf.as_mut()).unwrap();
+    let mut buf = [0u8; MAX_USB_PACKET_SIZE];
+    loop {
+        match cmd_rx.recv().await {
+            Some(cmd) => {
+                let len = minicbor::len(&cmd);
+                minicbor::encode(&cmd, buf.as_mut()).unwrap();
 
-                    match port.write_all(&buf[..len]).await {
-                        Ok(_) => {
-                            log::info!("Sent command: {:?}", cmd);
-                        }
-                        Err(e) => {
-                            log::error!("Failed to send command: {:?}", e);
-                        }
+                match port.write_all(&buf[..len]).await {
+                    Ok(_) => {
+                        log::info!("Sent command: {:?}", cmd);
+                    }
+                    Err(e) => {
+                        log::error!("Failed to send command: {:?}", e);
                     }
                 }
-                None => {
-                    log::warn!("Command receiver closed");
-                    break;
-                }
+            }
+            None => {
+                log::warn!("Command receiver closed");
+                break;
             }
         }
-    });
+    }
 }
 
 pub async fn start_api_service(state: AppState) {

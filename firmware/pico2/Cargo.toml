@@ -42,7 +42,7 @@ panic-probe = { version = "0.3", features = ["print-defmt"] }
 cortex-m-rt = "0.7.0"
 
 minicbor = { version = "0.26.1", features = ["derive"] }
-copi-protocol = { path = "../../copi-protocol" }
+copi-protocol = { path = "../../crates/copi-protocol" }
 pio = "0.3.0"
 
 [profile.release]

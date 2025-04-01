@@ -377,6 +377,7 @@ dependencies = [
  "copi-protocol",
  "log",
  "minicbor",
+ "nusb",
  "pio-core",
  "pio-parser",
  "serde",
@@ -390,8 +391,9 @@ name = "copi-mobile-binding"
 version = "0.1.0"
 dependencies = [
  "android_logger",
+ "copi-core",
  "log",
- "nusb",
+ "once_cell",
  "thiserror 2.0.12",
  "tokio",
  "uniffi",

@@ -2,14 +2,12 @@ use serde::Deserialize;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct PostGpioOutputInitReq {
-    pub rid: u16,
     pub pin: u8,
     pub value: bool,
 }
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct PostGpioOutputSetReq {
-    pub rid: u16,
     pub pin: u8,
     pub state: bool,
 }

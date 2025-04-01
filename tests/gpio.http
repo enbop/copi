@@ -1,0 +1,29 @@
+@BASE_URL=http://127.0.0.1:8899
+
+### init gpio out
+POST {{BASE_URL}}/gpio/output-init
+content-type: application/json
+
+{
+    "pin": 25,
+    "value": true
+}
+
+### set false value 
+POST {{BASE_URL}}/gpio/output-set
+content-type: application/json
+
+{
+    "pin": 25,
+    "state": false
+}
+
+
+### set true value 
+POST {{BASE_URL}}/gpio/output-set
+content-type: application/json
+
+{
+    "pin": 25,
+    "state": true
+}
