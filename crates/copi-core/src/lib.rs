@@ -14,8 +14,7 @@ pub struct AppState {
     port: Arc<Mutex<SerialStream>>,
 }
 
-#[tokio::main]
-async fn main() {
+pub async fn run() {
     env_logger::init();
 
     let mut port = tokio_serial::new("/dev/tty.usbmodem123456781", 0)

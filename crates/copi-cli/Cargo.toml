@@ -1,0 +1,9 @@
+[package]
+name = "copi"
+version = "0.1.0"
+edition = "2024"
+default-run = "copi"
+
+[dependencies]
+tokio = { version = "1", features = ["full"] }
+copi-core = { path = "../copi-core" }

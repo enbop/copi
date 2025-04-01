@@ -364,6 +364,14 @@ checksum = "5b63caa9aa9397e2d9480a9b13673856c78d8ac123288526c37d7839f2a86990"
 name = "copi"
 version = "0.1.0"
 dependencies = [
+ "copi-core",
+ "tokio",
+]
+
+[[package]]
+name = "copi-core"
+version = "0.1.0"
+dependencies = [
  "axum",
  "copi-protocol",
  "env_logger 0.11.7",
