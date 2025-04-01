@@ -7,3 +7,4 @@ default-run = "copi"
 [dependencies]
 tokio = { version = "1", features = ["full"] }
 copi-core = { path = "../copi-core" }
+env_logger = "0.11"

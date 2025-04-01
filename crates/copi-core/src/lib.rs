@@ -1,34 +1,63 @@
-use std::{
-    net::SocketAddr,
-    sync::{Arc, Mutex},
-};
+use std::net::SocketAddr;
 
 use axum::{Router, routing::post};
-use tokio_serial::{SerialPortBuilderExt as _, SerialStream};
+use copi_protocol::Command;
+use tokio::{
+    io::AsyncWriteExt,
+    sync::mpsc::{UnboundedReceiver, UnboundedSender},
+};
 
 mod api;
 mod types;
 
+const MAX_USB_PACKET_SIZE: usize = 64;
+
 #[derive(Clone)]
 pub struct AppState {
-    port: Arc<Mutex<SerialStream>>,
+    cmd_tx: UnboundedSender<Command>,
 }
 
-pub async fn run() {
-    env_logger::init();
+impl AppState {
+    pub fn new(cmd_tx: UnboundedSender<Command>) -> Self {
+        AppState { cmd_tx }
+    }
+}
+
+#[cfg(any(target_os = "macos", target_os = "linux"))]
+pub fn start_usb_cdc_service(mut cmd_rx: UnboundedReceiver<Command>) {
+    use tokio_serial::SerialPortBuilderExt as _;
 
     let mut port = tokio_serial::new("/dev/tty.usbmodem123456781", 0)
         .open_native_async()
         .unwrap();
 
-    #[cfg(unix)]
-    port.set_exclusive(false)
-        .expect("Unable to set serial port exclusive to false");
+    tokio::spawn(async move {
+        let mut buf = [0u8; MAX_USB_PACKET_SIZE];
+        loop {
+            match cmd_rx.recv().await {
+                Some(cmd) => {
+                    let len = minicbor::len(&cmd);
+                    minicbor::encode(&cmd, buf.as_mut()).unwrap();
 
-    let state = AppState {
-        port: Arc::new(Mutex::new(port)),
-    };
+                    match port.write_all(&buf[..len]).await {
+                        Ok(_) => {
+                            log::info!("Sent command: {:?}", cmd);
+                        }
+                        Err(e) => {
+                            log::error!("Failed to send command: {:?}", e);
+                        }
+                    }
+                }
+                None => {
+                    log::warn!("Command receiver closed");
+                    break;
+                }
+            }
+        }
+    });
+}
 
+pub async fn start_api_service(state: AppState) {
     let app = Router::new()
         .route("/gpio/output-init", post(api::gpio::output_init))
         .route("/gpio/output-set", post(api::gpio::output_set))
