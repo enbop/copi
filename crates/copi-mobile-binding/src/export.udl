@@ -1,0 +1,16 @@
+enum LogLevel {
+  "Off",
+  "Error",
+  "Warn",
+  "Info",
+  "Debug",
+  "Trace",
+};
+
+namespace copi_mobile_binding {
+  string version();
+
+  void init_logger(LogLevel level);
+
+  void init_usb_fd(i32 fd);
+};

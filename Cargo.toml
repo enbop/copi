@@ -1,5 +1,5 @@
 [workspace]
 resolver = "2"
-members = ["copi", "copi-protocol"]
+members = ["copi", "copi-protocol", "crates/copi-mobile-binding", "crates/uniffi-bindgen"]
 
 exclude = ["firmware/pico", "firmware/pico2"]

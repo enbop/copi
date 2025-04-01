@@ -1,0 +1,6 @@
+{
+    "recommendations": [
+        // for .udl files
+        "keqingrong.vscode-webidl"
+    ]
+}
