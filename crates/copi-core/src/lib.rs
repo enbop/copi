@@ -25,10 +25,21 @@ impl AppState {
     }
 }
 
-#[cfg(any(target_os = "macos", target_os = "linux"))]
+#[cfg(any(target_os = "macos", target_os = "linux", target_os = "windows"))]
 pub async fn start_usb_cdc_service(mut cmd_rx: UnboundedReceiver<Command>) {
     use tokio_serial::SerialPortBuilderExt as _;
 
+    let Some(_device) = nusb::list_devices()
+        .unwrap()
+        .find(|d| d.vendor_id() == 49374 && d.product_id() == 51966)
+    else {
+        println!("Device not found");
+        std::process::exit(1);
+    };
+    #[cfg(target_os = "windows")]
+    let mut port = { todo!() };
+
+    #[cfg(not(target_os = "windows"))]
     let mut port = tokio_serial::new("/dev/tty.usbmodem123456781", 0)
         .open_native_async()
         .unwrap();
