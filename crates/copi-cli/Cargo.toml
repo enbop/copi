@@ -8,3 +8,7 @@ default-run = "copi"
 tokio = { version = "1", features = ["full"] }
 copi-core = { path = "../copi-core" }
 env_logger = "0.11"
+sysinfo = "0.34"
+anyhow = "1.0"
+clap = { version = "4.5", features = ["derive"] }
+rust-embed = "8.6.0"
