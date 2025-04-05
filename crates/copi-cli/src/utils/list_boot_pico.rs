@@ -39,6 +39,9 @@ pub fn list_boot_pico() {
         // Board-ID: RP2350
         let mount_point: PathBuf = disk.mount_point().into();
         if check_pico2_info(&mount_point) {
+            #[cfg(target_os = "windows")]
+            println!("✅ Pico2: {}", mount_point.display().to_string().replace("\\", ""));
+            #[cfg(not(target_os = "windows"))]
             println!("✅ Pico2: {}", mount_point.display());
         }
     }
