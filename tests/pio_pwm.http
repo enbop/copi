@@ -1,5 +1,7 @@
+@BASE_URL=http://127.0.0.1:8899
+
 ### 1. load program (PWM)
-POST http://127.0.0.1:8899/pio/load_program
+POST {{BASE_URL}}/pio/load_program
 content-type: application/json
 
 {
@@ -8,7 +10,7 @@ content-type: application/json
 }
 
 ### 2. init state machine0 
-POST http://127.0.0.1:8899/pio/sm_init
+POST {{BASE_URL}}/pio/sm_init
 content-type: application/json
 
 {
@@ -18,7 +20,7 @@ content-type: application/json
 }
 
 ### 3. (set_period) push period to FIFO
-POST http://127.0.1:8899/pio/sm_push
+POST {{BASE_URL}}/pio/sm_push
 content-type: application/json
 
 {
@@ -29,7 +31,7 @@ content-type: application/json
 
 
 ### 4. (set_period) exec_instr (1) InstructionOperands::PULL
-POST http://127.0.1:8899/pio/sm_exec_instr
+POST {{BASE_URL}}/pio/sm_exec_instr
 content-type: application/json
 
 {
@@ -39,7 +41,7 @@ content-type: application/json
 }
 
 ### 5. (set_period) exec_instr (2) InstructionOperands::OUT
-POST http://127.0.1:8899/pio/sm_exec_instr
+POST {{BASE_URL}}/pio/sm_exec_instr
 content-type: application/json
 
 {
@@ -49,7 +51,7 @@ content-type: application/json
 }
 
 ### 6. enable sm0
-POST http://127.0.1:8899/pio/sm_set_enabled
+POST {{BASE_URL}}/pio/sm_set_enabled
 content-type: application/json
 
 {
@@ -59,7 +61,7 @@ content-type: application/json
 }
 
 ### 7. set duty cycle (10%)
-POST http://127.0.1:8899/pio/sm_push
+POST {{BASE_URL}}/pio/sm_push
 content-type: application/json
 
 {
@@ -69,7 +71,7 @@ content-type: application/json
 }
 
 ### 7. set duty cycle (80%)
-POST http://127.0.1:8899/pio/sm_push
+POST {{BASE_URL}}/pio/sm_push
 content-type: application/json
 
 {
