@@ -88,5 +88,5 @@ listening on 0.0.0.0:8899
 ### Blink the LED via a simple http
 
 ```
-curl -X POST http://localhost:8899/gpio/output-init -H "Content-Type: application/json" -d '{"rid": 1, "pin": 25, "value": true}'
+curl -X POST http://localhost:8899/gpio/output-init -H "Content-Type: application/json" -d '{"pin": 25, "value": true}'
 ```
