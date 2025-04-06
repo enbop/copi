@@ -26,7 +26,7 @@ Output binary: `firmware-output/copi-firmware-pico2.uf2`
 
 ### Build copi-cli
 ```bash
-cargo build
+cargo build --bin copi
 ```
 
 Output executable:

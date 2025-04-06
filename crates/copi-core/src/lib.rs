@@ -33,7 +33,7 @@ pub fn open_copi_serial() -> tokio_serial::SerialStream {
         .unwrap()
         .into_iter()
         .find(|s| match &s.port_type {
-            serialport::SerialPortType::UsbPort(info) => info.vid == 49374 && info.pid == 51966,
+            serialport::SerialPortType::UsbPort(info) => info.vid == 0x9527 && info.pid == 0xacdc,
             _ => false,
         })
     else {

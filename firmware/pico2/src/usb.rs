@@ -18,10 +18,10 @@ pub fn init(
 
     // Create embassy-usb Config
     let config = {
-        let mut config = embassy_usb::Config::new(0xc0de, 0xcafe);
-        config.manufacturer = Some("Embassy");
-        config.product = Some("USB-serial example");
-        config.serial_number = Some("12345678");
+        let mut config = embassy_usb::Config::new(0x9527, 0xacdc);
+        config.manufacturer = Some("Enbop");
+        config.product = Some("Copi");
+        config.serial_number = Some("88489527");
         config.max_power = 100;
         config.max_packet_size_0 = 64;
         config
