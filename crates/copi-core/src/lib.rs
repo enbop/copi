@@ -26,30 +26,33 @@ impl AppState {
 }
 
 #[cfg(any(target_os = "macos", target_os = "linux", target_os = "windows"))]
-pub async fn start_usb_cdc_service(mut cmd_rx: UnboundedReceiver<Command>) {
-    use serialport::available_ports;
+pub fn open_copi_serial() -> tokio_serial::SerialStream {
     use tokio_serial::SerialPortBuilderExt as _;
 
-    let Some(device) = available_ports()
-        .unwrap().into_iter()
-        .find(|s| {
-            match &s.port_type {
-                serialport::SerialPortType::UsbPort(info) => {
-                    info.vid == 49374 && info.pid == 51966
-                }
-                _ => false,
-            }})
+    let Some(device) = serialport::available_ports()
+        .unwrap()
+        .into_iter()
+        .find(|s| match &s.port_type {
+            serialport::SerialPortType::UsbPort(info) => info.vid == 49374 && info.pid == 51966,
+            _ => false,
+        })
     else {
-        println!("Device not found");
+        log::warn!("Device not found");
         std::process::exit(1);
     };
 
-    println!("Found device: {:?}", device.port_name);
+    log::info!("Found device: {:?}", device.port_name);
 
-    let mut port = tokio_serial::new(device.port_name, 0)
+    tokio_serial::new(device.port_name, 0)
         .open_native_async()
-        .unwrap();
+        .unwrap()
+}
 
+#[cfg(any(target_os = "macos", target_os = "linux", target_os = "windows"))]
+pub async fn start_usb_cdc_service(
+    mut port: tokio_serial::SerialStream,
+    mut cmd_rx: UnboundedReceiver<Command>,
+) {
     let mut buf = [0u8; MAX_USB_PACKET_SIZE];
     loop {
         match cmd_rx.recv().await {

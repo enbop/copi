@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
-use copi_core::{AppState, start_api_service, start_usb_cdc_service};
+use copi_core::{AppState, open_copi_serial, start_api_service, start_usb_cdc_service};
 
 mod flash;
 mod utils;
@@ -28,7 +28,8 @@ enum Commands {
 
 #[tokio::main]
 async fn main() {
-    env_logger::init();
+    let env = env_logger::Env::default().filter_or("COPI_LOG", "info");
+    env_logger::init_from_env(env);
 
     let cli = Cli::parse();
 
@@ -39,7 +40,7 @@ async fn main() {
                 return;
             }
             Commands::Flash { pico } => {
-                println!("Flashing copi firmware to: {}", pico.display());
+                log::info!("Flashing copi firmware to: {}", pico.display());
                 flash::flash(pico);
                 return;
             }
@@ -49,6 +50,7 @@ async fn main() {
     let (cmd_tx, cmd_rx) = tokio::sync::mpsc::unbounded_channel();
     let state = AppState::new(cmd_tx);
 
+    let port = open_copi_serial();
     tokio::spawn(start_api_service(state));
-    start_usb_cdc_service(cmd_rx).await;
+    start_usb_cdc_service(port, cmd_rx).await;
 }

@@ -17,7 +17,7 @@ pub fn check_pico2_info(path: &PathBuf) -> bool {
 pub fn list_boot_pico() {
     // This function is a placeholder for the actual implementation.
     // It should contain the logic to list bootable Pico devices.
-    println!("Listing bootable Pico devices...");
+    log::info!("Listing bootable Pico devices...");
     let disks = Disks::new_with_refreshed_list();
     let disks: Vec<_> = disks
         .list()
@@ -28,7 +28,7 @@ pub fn list_boot_pico() {
         })
         .collect();
     if disks.is_empty() {
-        println!("No bootable Pico devices found.");
+        log::warn!("No bootable Pico devices found.");
         return;
     }
 
@@ -40,9 +40,12 @@ pub fn list_boot_pico() {
         let mount_point: PathBuf = disk.mount_point().into();
         if check_pico2_info(&mount_point) {
             #[cfg(target_os = "windows")]
-            println!("✅ Pico2: {}", mount_point.display().to_string().replace("\\", ""));
+            log::info!(
+                "✅ Pico2: {}",
+                mount_point.display().to_string().replace("\\", "")
+            );
             #[cfg(not(target_os = "windows"))]
-            println!("✅ Pico2: {}", mount_point.display());
+            log::info!("✅ Pico2: {}", mount_point.display());
         }
     }
 }

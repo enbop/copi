@@ -12,3 +12,4 @@ sysinfo = "0.34"
 anyhow = "1.0"
 clap = { version = "4.5", features = ["derive"] }
 rust-embed = "8.6.0"
+log = "0.4"

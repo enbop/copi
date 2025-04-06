@@ -10,7 +10,7 @@ struct Firmware;
 
 pub fn flash(pico: PathBuf) {
     if !check_pico2_info(&pico) {
-        println!("No a valid pico2 device: {}", pico.display());
+        log::warn!("Not a valid pico2 device: {}", pico.display());
         return;
     }
 
@@ -18,5 +18,5 @@ pub fn flash(pico: PathBuf) {
     let mut file = std::fs::File::create(&pico.join("copi-firmware-pico2.uf2")).unwrap();
     file.write_all(&uf2.data).unwrap();
     file.flush().unwrap();
-    println!("Flashed firmware to: {}", pico.display());
+    log::info!("Flashed firmware to: {}", pico.display());
 }
