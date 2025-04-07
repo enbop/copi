@@ -13,12 +13,13 @@ const USB_INTR_CLASS_CDC_DATA: u8 = 0x0A;
 #[allow(unused_variables)]
 // https://github.com/wuwbobo2021/android-usbser-rs
 pub async fn start_usb_cdc_service(fd: i32, mut cmd_rx: UnboundedReceiver<Command>) {
-    let di = nusb::list_devices()
-        .unwrap()
-        .find(|d| d.vendor_id() == 49374 && d.product_id() == 51966)
-        .expect("device should be connected");
+    // TODO nusb::list_devices() will be blocked in some android devices.
+    // let di = nusb::list_devices()
+    //     .unwrap()
+    //     .find(|d| d.vendor_id() == 49374 && d.product_id() == 51966)
+    //     .expect("device should be connected");
 
-    log::info!("Device info: {:?}", di);
+    // log::info!("Device info: {:?}", di);
 
     // (android_usbser)
     // Safety: `close()` is not called automatically when the JNI `AutoLocal` of `conn`
@@ -32,13 +33,11 @@ pub async fn start_usb_cdc_service(fd: i32, mut cmd_rx: UnboundedReceiver<Comman
     #[cfg(not(target_os = "android"))]
     let device: nusb::Device = unreachable!();
 
-    let (intr_comm, intr_data) = find_interfaces(&di).unwrap();
-    let intr_comm = device
-        .detach_and_claim_interface(intr_comm.interface_number())
-        .unwrap();
-    let intr_data = device
-        .detach_and_claim_interface(intr_data.interface_number())
-        .unwrap();
+    // let (intr_comm, intr_data) = find_interfaces(&di).unwrap();
+
+    // TODO make sure interface numbers are correct.
+    let intr_comm = device.detach_and_claim_interface(0).unwrap();
+    let intr_data = device.detach_and_claim_interface(1).unwrap();
 
     // Note: It doesn't select a setting with the highest bandwidth.
     let (mut addr_r, mut addr_w) = (None, None);
