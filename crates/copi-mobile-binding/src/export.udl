@@ -12,5 +12,5 @@ namespace copi_mobile_binding {
 
   void init_logger(LogLevel level);
 
-  void init_usb_fd(i32 fd);
+  void init_usb_fd(i32 fd, i32 interface_comm, i32 interface_data);
 };

@@ -1,26 +1,19 @@
 use copi_protocol::Command;
 use nusb::transfer::Direction;
-use nusb::{DeviceInfo, InterfaceInfo};
 use tokio::sync::mpsc::UnboundedReceiver;
 
 use crate::MAX_USB_PACKET_SIZE;
 
-const USB_INTR_CLASS_COMM: u8 = 0x02;
-const USB_INTR_SUBCLASS_ACM: u8 = 0x02;
-const USB_INTR_CLASS_CDC_DATA: u8 = 0x0A;
-
 #[allow(unreachable_code)]
 #[allow(unused_variables)]
+#[allow(unused_mut)]
 // https://github.com/wuwbobo2021/android-usbser-rs
-pub async fn start_usb_cdc_service(fd: i32, mut cmd_rx: UnboundedReceiver<Command>) {
-    // TODO nusb::list_devices() will be blocked in some android devices.
-    // let di = nusb::list_devices()
-    //     .unwrap()
-    //     .find(|d| d.vendor_id() == 49374 && d.product_id() == 51966)
-    //     .expect("device should be connected");
-
-    // log::info!("Device info: {:?}", di);
-
+pub async fn start_usb_cdc_service(
+    fd: i32,
+    interface_comm: i32,
+    interface_data: i32,
+    mut cmd_rx: UnboundedReceiver<Command>,
+) {
     // (android_usbser)
     // Safety: `close()` is not called automatically when the JNI `AutoLocal` of `conn`
     // and the corresponding Java object is destroyed. (check `UsbDeviceConnection` source)
@@ -33,11 +26,12 @@ pub async fn start_usb_cdc_service(fd: i32, mut cmd_rx: UnboundedReceiver<Comman
     #[cfg(not(target_os = "android"))]
     let device: nusb::Device = unreachable!();
 
-    // let (intr_comm, intr_data) = find_interfaces(&di).unwrap();
-
-    // TODO make sure interface numbers are correct.
-    let intr_comm = device.detach_and_claim_interface(0).unwrap();
-    let intr_data = device.detach_and_claim_interface(1).unwrap();
+    let intr_comm = device
+        .detach_and_claim_interface(interface_comm as _)
+        .unwrap();
+    let intr_data = device
+        .detach_and_claim_interface(interface_data as _)
+        .unwrap();
 
     // Note: It doesn't select a setting with the highest bandwidth.
     let (mut addr_r, mut addr_w) = (None, None);
@@ -67,23 +61,5 @@ pub async fn start_usb_cdc_service(fd: i32, mut cmd_rx: UnboundedReceiver<Comman
                 break;
             }
         }
-    }
-}
-
-/// (android_usbser)
-/// Returns (intr_comm, intr_data) if it is a CDC-ACM device.
-fn find_interfaces(dev_info: &DeviceInfo) -> Option<(InterfaceInfo, InterfaceInfo)> {
-    let (comm, data) = (
-        dev_info.interfaces().find(|intr| {
-            intr.class() == USB_INTR_CLASS_COMM && intr.subclass() == USB_INTR_SUBCLASS_ACM
-        }),
-        dev_info
-            .interfaces()
-            .find(|intr| intr.class() == USB_INTR_CLASS_CDC_DATA),
-    );
-    if let (Some(comm), Some(data)) = (comm, data) {
-        Some((comm.clone(), data.clone()))
-    } else {
-        None
     }
 }
