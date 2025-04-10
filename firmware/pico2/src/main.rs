@@ -8,6 +8,9 @@ mod pio;
 mod usb;
 mod utils;
 
+#[cfg(feature = "rhai")]
+mod rhai;
+
 use command::handle_command;
 use defmt::info;
 use embassy_executor::Spawner;
@@ -39,6 +42,9 @@ pub static PICOTOOL_ENTRIES: [embassy_rp::binary_info::EntryAddr; 4] = [
 
 #[embassy_executor::main]
 async fn main(spawner: Spawner) {
+    #[cfg(feature = "rhai")]
+    rhai::init();
+
     let p: embassy_rp::Peripherals = embassy_rp::init(Default::default());
 
     let mut pc = PeripheralController::new();
