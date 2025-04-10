@@ -1,6 +1,9 @@
 use std::net::SocketAddr;
 
-use axum::{Router, routing::post};
+use axum::{
+    Router,
+    routing::{get, post},
+};
 use copi_protocol::Command;
 use tokio::{
     io::AsyncWriteExt,
@@ -91,6 +94,7 @@ pub async fn start_api_service(state: AppState) {
         .route("/pio/sm_set_enabled", post(api::pio::sm_set_enabled))
         .route("/pio/sm_push", post(api::pio::sm_push))
         .route("/pio/sm_exec_instr", post(api::pio::sm_exec_instr))
+        .route("/playground", get(api::playground::playground))
         .with_state(state);
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:8899").await.unwrap();

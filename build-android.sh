@@ -8,9 +8,9 @@ write_version_and_data() {
     # date > android-binding/uniffi/build-time.txt
 }
 
-# debug build
-# ./build-android.sh debug arm64-v8a
-if [ "$1" == "debug" ]; then
+# target build
+# ./build-android.sh target arm64-v8a
+if [ "$1" == "target" ]; then
     if [ "$2" == "x86" ]; then
         target_folder="i686-linux-android"
     elif [ "$2" == "x86_64" ]; then
@@ -27,7 +27,7 @@ if [ "$1" == "debug" ]; then
     cargo ndk \
         -t $2 \
         -o android-output/jniLibs build \
-        -p copi-mobile-binding
+        -p copi-mobile-binding --release
 
     cargo run -p uniffi-bindgen generate \
         --library target/$target_folder/debug/libcopi_mobile_binding.so \
@@ -38,7 +38,7 @@ if [ "$1" == "debug" ]; then
     exit 0
 fi
 
-# default release build
+# default all targets build
 
 cargo ndk \
     -t x86 \
