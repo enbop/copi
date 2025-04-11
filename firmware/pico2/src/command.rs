@@ -1,21 +1,23 @@
-use copi_protocol::Command::{self, *};
+use copi_protocol::{
+    CopiRequest, CopiResponse, DeviceCommonErrorCode, DeviceMessage, HostMessage::*,
+};
 use defmt::info;
 use pio::{ArrayVec, PioVersion, Program, SideSet, Wrap};
 
 use crate::peripherals::PeripheralController;
 
-pub fn handle_command<'d>(pc: &mut PeripheralController<'d>, command: Command) {
-    match command {
-        GpioOutputInit { rid, pin, value } => {
+pub fn handle_request<'d>(pc: &mut PeripheralController<'d>, request: CopiRequest) -> CopiResponse {
+    let request_id = request.request_id();
+    let device_message = match request.into_message() {
+        GpioOutputInit { pin, value } => {
             info!("GpioOutputInit: {} {}", pin, value);
-            pc.gpio_output_init(pin as _, value);
+            pc.gpio_output_init(pin as _, value)
         }
-        GpioOutputSet { rid, pin, state } => {
+        GpioOutputSet { pin, state } => {
             info!("GpioOutputSet: {} {}", pin, state);
-            pc.gpio_output_set(pin as _, state);
+            pc.gpio_output_set(pin as _, state)
         }
         PwmInit {
-            rid,
             slice,
             a,
             b,
@@ -34,14 +36,13 @@ pub fn handle_command<'d>(pc: &mut PeripheralController<'d>, command: Command) {
                 compare_b,
                 top
             );
-            pc.pwm_init(slice, a, b, divider, compare_a, compare_b, top);
+            pc.pwm_init(slice, a, b, divider, compare_a, compare_b, top)
         }
-        PwmSetDutyCyclePercent { rid, pin, percent } => {
-            info!("PwmSetDutyCyclePercent: {} {} {}", rid, pin, percent);
-            pc.pwm_set_duty_cycle_percent(pin, percent);
+        PwmSetDutyCyclePercent { pin, percent } => {
+            info!("PwmSetDutyCyclePercent: {} {}", pin, percent);
+            pc.pwm_set_duty_cycle_percent(pin, percent)
         }
         PioLoadProgram {
-            rid,
             pio_num,
             program,
             program_len,
@@ -79,51 +80,47 @@ pub fn handle_command<'d>(pc: &mut PeripheralController<'d>, command: Command) {
                         PioVersion::V1
                     },
                 },
-            );
+            )
         }
         PioSmInit {
-            rid,
             pio_num,
             sm_num,
             pin_num,
         } => {
-            info!("PioSmInit: {} {} {}", rid, pio_num, sm_num);
-            pc.pio_sm_init(pio_num as _, sm_num as _, pin_num as _);
+            info!("PioSmInit: {} {}", pio_num, sm_num);
+            pc.pio_sm_init(pio_num as _, sm_num as _, pin_num as _)
         }
         PioSmSetEnable {
-            rid,
             pio_num,
             sm_num,
             enable,
         } => {
-            info!("PioSmSetEnable: {} {} {}", rid, pio_num, enable);
-            pc.pio_sm_set_enable(pio_num as _, sm_num as _, enable);
+            info!("PioSmSetEnable: {} {}", pio_num, enable);
+            pc.pio_sm_set_enable(pio_num as _, sm_num as _, enable)
         }
         PioSmPush {
-            rid,
             pio_num,
             sm_num,
             instr,
         } => {
-            info!("PioPush: {} {} {}", rid, pio_num, instr);
-            pc.pio_sm_push(pio_num as _, sm_num as _, instr);
+            info!("PioPush: {} {}", pio_num, instr);
+            pc.pio_sm_push(pio_num as _, sm_num as _, instr)
         }
         PioSmExecInstr {
-            rid,
             pio_num,
             sm_num,
             exec_instr,
         } => {
-            info!(
-                "PioExecInstr: {} {} {} {}",
-                rid, pio_num, sm_num, exec_instr
-            );
-            unsafe {
-                pc.pio_sm_exec_instr_unchecked(pio_num as _, sm_num as _, exec_instr);
-            }
+            info!("PioExecInstr: {} {} {}", pio_num, sm_num, exec_instr);
+            unsafe { pc.pio_sm_exec_instr_unchecked(pio_num as _, sm_num as _, exec_instr) }
         }
-        _ => {
-            info!("Unknown command");
-        }
+        _ => DeviceMessage::Common {
+            error: DeviceCommonErrorCode::UnknowError as _,
+            data: 0,
+        },
+    };
+    if request_id == 0 {
+        return CopiResponse::empty();
     }
+    CopiResponse::new(request_id, device_message)
 }

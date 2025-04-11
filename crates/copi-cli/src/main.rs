@@ -47,10 +47,11 @@ async fn main() {
         }
     }
 
-    let (cmd_tx, cmd_rx) = tokio::sync::mpsc::unbounded_channel();
-    let state = AppState::new(cmd_tx);
+    let (request_tx, request_rx) = tokio::sync::mpsc::unbounded_channel();
+    let (response_tx, response_rx) = tokio::sync::mpsc::unbounded_channel();
+    let state = AppState::new(request_tx, response_rx);
 
     let port = open_copi_serial();
     tokio::spawn(start_api_service(state));
-    start_usb_cdc_service(port, cmd_rx).await;
+    start_usb_cdc_service(port, request_rx, response_tx).await;
 }

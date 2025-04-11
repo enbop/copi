@@ -1,3 +1,4 @@
+use copi_protocol::{DeviceCommonErrorCode, DeviceMessage};
 use defmt::info;
 use embassy_rp::{
     Peripheral,
@@ -27,14 +28,15 @@ impl Default for Pin {
     }
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone, Copy)]
+#[repr(C)]
 pub enum PinState {
-    None,
-    GpioInput,
-    GpioOutput,
-    PwmOut,
-    PwmIn,
-    Pio0,
+    None = 0,
+    GpioInput = 1,
+    GpioOutput = 2,
+    PwmOut = 3,
+    PwmIn = 4,
+    Pio0 = 5,
 }
 
 pub struct PeripheralController<'d> {
@@ -44,6 +46,18 @@ pub struct PeripheralController<'d> {
     gpio_outputs: Slot<Output<'d>, 30>,
     pwms: Slot<Pwm<'d>, 8>,
     pios: PioControl<'d>,
+}
+
+#[macro_export]
+macro_rules! check_pin_state {
+    ($pin:expr, $state:expr) => {
+        if $pin.state != $state {
+            return DeviceMessage::Common {
+                error: DeviceCommonErrorCode::WrongPinState as _,
+                data: $pin.state as _,
+            };
+        }
+    };
 }
 
 impl<'d> PeripheralController<'d> {
@@ -61,11 +75,9 @@ impl<'d> PeripheralController<'d> {
         this
     }
 
-    pub fn gpio_output_init(&mut self, pin_num: usize, value: bool) -> bool {
+    pub fn gpio_output_init(&mut self, pin_num: usize, value: bool) -> DeviceMessage {
         let pin = &mut self.pins[pin_num];
-        if pin.state != PinState::None {
-            return false;
-        }
+        check_pin_state!(pin, PinState::None);
 
         let pin_cl = unsafe { get_anypin_unchecked(&self.embassy_rp, pin_num as _) };
         let output = Output::new(
@@ -76,21 +88,17 @@ impl<'d> PeripheralController<'d> {
                 embassy_rp::gpio::Level::Low
             },
         );
-        let Some(index) = self.gpio_outputs.add(output) else {
-            // TODO: handle error
-            return false;
-        };
+        let index = self.gpio_outputs.add(output).unwrap(); // TODO
+
         pin.resource_index = index;
         pin.state = PinState::GpioOutput;
-        true
+        DeviceMessage::common(value as u64)
     }
 
-    // TODO return a Result instead of bool
-    pub fn gpio_output_set(&mut self, pin_num: usize, value: bool) -> bool {
+    pub fn gpio_output_set(&mut self, pin_num: usize, value: bool) -> DeviceMessage {
         let pin = &mut self.pins[pin_num];
-        if pin.state != PinState::GpioOutput {
-            return false;
-        }
+        check_pin_state!(pin, PinState::GpioOutput);
+
         let output = &mut self.gpio_outputs.get_mut(pin.resource_index);
         assert!(output.is_some());
         if value {
@@ -98,7 +106,7 @@ impl<'d> PeripheralController<'d> {
         } else {
             output.as_mut().unwrap().set_low();
         }
-        true
+        DeviceMessage::common(value as u64)
     }
 
     pub fn pwm_init(
@@ -110,19 +118,15 @@ impl<'d> PeripheralController<'d> {
         compare_a: u16,
         compare_b: u16,
         top: u16,
-    ) {
+    ) -> DeviceMessage {
         // TODO check slice and pins
 
         let pin_a = match a {
             Some(a) => {
                 let pin = &mut self.pins[a as usize];
-                if pin.state != PinState::None {
-                    // TODO return error
-                    None
-                } else {
-                    pin.state = PinState::PwmOut;
-                    unsafe { Some(get_anypin_unchecked(&self.embassy_rp, a).into_ref()) }
-                }
+                check_pin_state!(pin, PinState::None);
+                pin.state = PinState::PwmOut;
+                unsafe { Some(get_anypin_unchecked(&self.embassy_rp, a).into_ref()) }
             }
             None => None,
         };
@@ -130,13 +134,9 @@ impl<'d> PeripheralController<'d> {
         let pin_b = match b {
             Some(b) => {
                 let pin = &mut self.pins[b as usize];
-                if pin.state != PinState::None {
-                    // TODO return error
-                    None
-                } else {
-                    pin.state = PinState::PwmOut;
-                    unsafe { Some(get_anypin_unchecked(&self.embassy_rp, b).into_ref()) }
-                }
+                check_pin_state!(pin, PinState::None);
+                pin.state = PinState::PwmOut;
+                unsafe { Some(get_anypin_unchecked(&self.embassy_rp, b).into_ref()) }
             }
             None => None,
         };
@@ -151,29 +151,29 @@ impl<'d> PeripheralController<'d> {
             Pwm::new_inner_unchecked(slice as _, pin_a, pin_b, Pull::None, config, Divmode::DIV)
         };
 
-        let Some(index) = self.pwms.add(pwm) else {
-            // TODO: handle error
-            return;
-        };
+        let index = self.pwms.add(pwm).unwrap(); // TODO
         for pin in [a, b].iter() {
             if let Some(pin) = pin {
                 self.pins[*pin as usize].resource_index = index;
             }
         }
+        DeviceMessage::empty_ok()
     }
 
-    pub fn pwm_set_duty_cycle_percent(&mut self, pin_num: u8, percent: u8) {
-        let pwm = &mut self
-            .pwms
-            .get_mut(self.pins[pin_num as usize].resource_index);
+    pub fn pwm_set_duty_cycle_percent(&mut self, pin_num: u8, percent: u8) -> DeviceMessage {
+        let pin = &mut self.pins[pin_num as usize];
+        check_pin_state!(pin, PinState::PwmOut);
+
+        let pwm = &mut self.pwms.get_mut(pin.resource_index);
         assert!(pwm.is_some());
-        pwm.as_mut()
-            .unwrap()
-            .set_duty_cycle_percent(percent)
-            .unwrap();
+        if let Err(_e) = pwm.as_mut().unwrap().set_duty_cycle_percent(percent) {
+            // TODO InvalidDutyCycle
+            return DeviceMessage::unknown_error();
+        }
+        DeviceMessage::common(percent as u64)
     }
 
-    pub fn pio_load_program(&mut self, pio_num: usize, program: Program<16>) -> bool {
+    pub fn pio_load_program(&mut self, pio_num: usize, program: Program<16>) -> DeviceMessage {
         for i in &program.code {
             info!("pio_load_program: {}", i);
         }
@@ -187,14 +187,13 @@ impl<'d> PeripheralController<'d> {
                 p.replace(p1);
             }
         );
-        true
+        DeviceMessage::empty_ok()
     }
 
-    pub fn pio_sm_init(&mut self, pio_num: usize, sm_num: usize, pin_num: u8) -> bool {
+    pub fn pio_sm_init(&mut self, pio_num: usize, sm_num: usize, pin_num: u8) -> DeviceMessage {
         let pin = &mut self.pins[pin_num as usize];
-        if pin.state != PinState::None {
-            return false;
-        }
+        check_pin_state!(pin, PinState::None);
+
         pin.state = PinState::Pio0;
         let any_pin = unsafe { get_anypin_unchecked(&self.embassy_rp, pin_num) };
 
@@ -215,15 +214,20 @@ impl<'d> PeripheralController<'d> {
                 sm_invoke!(pio, sm_num, set_pin_dirs, Direction::Out, &[&pin]);
             }
         );
-        true
+        DeviceMessage::empty_ok()
     }
 
-    pub fn pio_sm_set_enable(&mut self, pio_num: usize, sm_num: usize, enable: bool) -> bool {
+    pub fn pio_sm_set_enable(
+        &mut self,
+        pio_num: usize,
+        sm_num: usize,
+        enable: bool,
+    ) -> DeviceMessage {
         pio_sm_invoke!(self.pios, pio_num, sm_num, set_enable, enable);
-        true
+        DeviceMessage::common(enable as u64)
     }
 
-    pub fn pio_sm_push(&mut self, pio_num: usize, sm_num: usize, instr: u32) -> bool {
+    pub fn pio_sm_push(&mut self, pio_num: usize, sm_num: usize, instr: u32) -> DeviceMessage {
         #[rustfmt::skip]
         pio_sm_run!(
             self.pios,
@@ -233,7 +237,7 @@ impl<'d> PeripheralController<'d> {
                 sm.tx().push(instr);
             }
         );
-        true
+        DeviceMessage::empty_ok()
     }
 
     pub unsafe fn pio_sm_exec_instr_unchecked(
@@ -241,9 +245,10 @@ impl<'d> PeripheralController<'d> {
         pio_num: usize,
         sm_num: usize,
         instr: u16,
-    ) {
+    ) -> DeviceMessage {
         unsafe {
             pio_sm_invoke!(self.pios, pio_num, sm_num, exec_instr, instr);
         }
+        DeviceMessage::empty_ok()
     }
 }

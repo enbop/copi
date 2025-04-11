@@ -1,4 +1,4 @@
-use copi_protocol::Command;
+use copi_protocol::{CopiRequest, HostMessage};
 use nusb::transfer::Direction;
 use tokio::sync::mpsc::UnboundedReceiver;
 
@@ -12,7 +12,7 @@ pub async fn start_usb_cdc_service(
     fd: i32,
     interface_comm: i32,
     interface_data: i32,
-    mut cmd_rx: UnboundedReceiver<Command>,
+    mut request_rx: UnboundedReceiver<CopiRequest>,
 ) {
     // (android_usbser)
     // Safety: `close()` is not called automatically when the JNI `AutoLocal` of `conn`
@@ -50,7 +50,7 @@ pub async fn start_usb_cdc_service(
 
     let mut buf = [0u8; MAX_USB_PACKET_SIZE];
     loop {
-        match cmd_rx.recv().await {
+        match request_rx.recv().await {
             Some(cmd) => {
                 let len = minicbor::len(&cmd);
                 minicbor::encode(&cmd, buf.as_mut()).unwrap();

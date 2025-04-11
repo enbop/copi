@@ -1,13 +1,17 @@
 use std::collections::HashMap;
 
-use axum::{Json, extract::State};
-use copi_protocol::Command;
+use axum::{Json, extract::State, http::StatusCode};
+use copi_protocol::HostMessage;
 use pio_core::{PioVersion, ProgramWithDefines};
 use pio_parser::Parser as PioParser;
 
-use crate::{AppState, types::*};
+use crate::{AppState, process_common, types::*};
 
-pub async fn load_program(State(state): State<AppState>, Json(req): Json<PostPioLoadProgramReq>) {
+#[axum::debug_handler]
+pub async fn load_program(
+    State(mut state): State<AppState>,
+    Json(req): Json<PostPioLoadProgramReq>,
+) -> Result<Json<CommonResponse>, StatusCode> {
     log::info!("Loading PIO program: {}", req.program);
     let program_parsed: ProgramWithDefines<HashMap<String, i32>, 16> =
         PioParser::parse_program(&req.program).unwrap();
@@ -20,8 +24,7 @@ pub async fn load_program(State(state): State<AppState>, Json(req): Json<PostPio
         program[i * 2 + 1] = bytes[1];
     }
 
-    let cmd = Command::PioLoadProgram {
-        rid: 1,
+    let msg = HostMessage::PioLoadProgram {
         pio_num: req.pio_num,
         program,
         program_len: (program_parsed.program.code.len() * 2) as u8, // as u8 len
@@ -33,50 +36,59 @@ pub async fn load_program(State(state): State<AppState>, Json(req): Json<PostPio
         side_set_pindirs: program_parsed.program.side_set.pindirs(),
         pio_version_v0: program_parsed.program.version == PioVersion::V0,
     };
-    log::info!("PIO command: {:?}", cmd);
+    log::info!("PIO command: {:?}", msg);
 
-    state.cmd_tx.send(cmd).ok();
+    process_common!(state, req, msg)
 }
 
-pub async fn sm_init(State(state): State<AppState>, Json(req): Json<PostPioSmInitReq>) {
-    let cmd = Command::PioSmInit {
-        rid: 1,
+#[axum::debug_handler]
+pub async fn sm_init(
+    State(mut state): State<AppState>,
+    Json(req): Json<PostPioSmInitReq>,
+) -> Result<Json<CommonResponse>, StatusCode> {
+    let msg = HostMessage::PioSmInit {
         pio_num: req.pio_num,
         sm_num: req.sm_num,
         pin_num: req.pin_num,
     };
-    state.cmd_tx.send(cmd).ok();
+    process_common!(state, req, msg)
 }
 
+#[axum::debug_handler]
 pub async fn sm_set_enabled(
-    State(state): State<AppState>,
+    State(mut state): State<AppState>,
     Json(req): Json<PostPioSmSetEnabledReq>,
-) {
-    let cmd = Command::PioSmSetEnable {
-        rid: 1,
+) -> Result<Json<CommonResponse>, StatusCode> {
+    let msg = HostMessage::PioSmSetEnable {
         pio_num: req.pio_num,
         sm_num: req.sm_num,
         enable: req.enabled,
     };
-    state.cmd_tx.send(cmd).ok();
+    process_common!(state, req, msg)
 }
 
-pub async fn sm_push(State(state): State<AppState>, Json(req): Json<PostPioSmPushReq>) {
-    let cmd = Command::PioSmPush {
-        rid: 1,
+#[axum::debug_handler]
+pub async fn sm_push(
+    State(mut state): State<AppState>,
+    Json(req): Json<PostPioSmPushReq>,
+) -> Result<Json<CommonResponse>, StatusCode> {
+    let msg = HostMessage::PioSmPush {
         pio_num: req.pio_num,
         sm_num: req.sm_num,
         instr: req.instr,
     };
-    state.cmd_tx.send(cmd).ok();
+    process_common!(state, req, msg)
 }
 
-pub async fn sm_exec_instr(State(state): State<AppState>, Json(req): Json<PostPioSmExecInstrReq>) {
-    let cmd = Command::PioSmExecInstr {
-        rid: 1,
+#[axum::debug_handler]
+pub async fn sm_exec_instr(
+    State(mut state): State<AppState>,
+    Json(req): Json<PostPioSmExecInstrReq>,
+) -> Result<Json<CommonResponse>, StatusCode> {
+    let msg = HostMessage::PioSmExecInstr {
         pio_num: req.pio_num,
         sm_num: req.sm_num,
         exec_instr: req.exec_instr,
     };
-    state.cmd_tx.send(cmd).ok();
+    process_common!(state, req, msg)
 }

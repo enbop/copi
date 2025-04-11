@@ -1,24 +1,28 @@
-use axum::{Json, extract::State};
-use copi_protocol::Command;
+use axum::{Json, extract::State, http::StatusCode};
+use copi_protocol::HostMessage;
 
-use crate::{AppState, types::*};
+use crate::{AppState, process_common, types::*};
 
 #[axum::debug_handler]
-pub async fn output_init(State(state): State<AppState>, Json(req): Json<PostGpioOutputInitReq>) {
-    let cmd = Command::GpioOutputInit {
-        rid: 1,
+pub async fn output_init(
+    State(mut state): State<AppState>,
+    Json(req): Json<PostGpioOutputInitReq>,
+) -> Result<Json<CommonResponse>, StatusCode> {
+    let msg = HostMessage::GpioOutputInit {
         pin: req.pin,
         value: req.value,
     };
-    state.cmd_tx.send(cmd).ok();
+    process_common!(state, req, msg)
 }
 
 #[axum::debug_handler]
-pub async fn output_set(State(state): State<AppState>, Json(req): Json<PostGpioOutputSetReq>) {
-    let cmd = Command::GpioOutputSet {
-        rid: 1,
+pub async fn output_set(
+    State(mut state): State<AppState>,
+    Json(req): Json<PostGpioOutputSetReq>,
+) -> Result<Json<CommonResponse>, StatusCode> {
+    let msg = HostMessage::GpioOutputSet {
         pin: req.pin,
         state: req.state,
     };
-    state.cmd_tx.send(cmd).ok();
+    process_common!(state, req, msg)
 }

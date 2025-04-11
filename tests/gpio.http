@@ -25,5 +25,6 @@ content-type: application/json
 
 {
     "pin": 25,
-    "state": true
+    "state": true,
+    "skipResponse": true
 }

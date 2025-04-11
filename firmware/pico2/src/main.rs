@@ -11,7 +11,7 @@ mod utils;
 #[cfg(feature = "rhai")]
 mod rhai;
 
-use command::handle_command;
+use command::handle_request;
 use defmt::info;
 use embassy_executor::Spawner;
 use embassy_rp::{
@@ -63,14 +63,21 @@ async fn handle_class<'d, T: Instance + 'd>(
     class: &mut CdcAcmClass<'d, Driver<'d, T>>,
     pc: &mut PeripheralController<'d>,
 ) -> Result<(), usb::Disconnected> {
-    let mut buf = [0; 64];
+    let mut request_buf = [0; 64];
+    let mut response_buf = [0; 64];
     loop {
-        let n = class.read_packet(&mut buf).await?;
-        let data = &buf[..n];
+        let n = class.read_packet(&mut request_buf).await?;
+        let data = &request_buf[..n];
         info!("data: {} - {:x}", n, data);
 
-        if let Ok(command) = minicbor::decode::<copi_protocol::Command>(data) {
-            handle_command(pc, command);
+        if let Ok(req) = minicbor::decode::<copi_protocol::CopiRequest>(data) {
+            let response = handle_request(pc, req);
+
+            if response.request_id() != 0 {
+                let len = minicbor::len(&response);
+                minicbor::encode(&response, response_buf.as_mut()).unwrap();
+                class.write_packet(&response_buf[..len]).await?;
+            }
         };
     }
 }
