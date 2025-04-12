@@ -89,6 +89,7 @@ impl AppState {
     pub fn new(
         request_tx: UnboundedSender<CopiRequest>,
         response_rx: UnboundedReceiver<CopiResponse>,
+        #[cfg(target_os = "android")] runtime: &tokio::runtime::Runtime,
     ) -> Self {
         let device_channel = DeviceChannel {
             non_zero_count: Arc::new(NonZeroU16Count::new()),
@@ -97,7 +98,10 @@ impl AppState {
         };
 
         let callbacks = device_channel.callbacks.clone();
+        #[cfg(not(target_os = "android"))]
         let response_task = tokio::spawn(Self::handle_response(response_rx, callbacks));
+        #[cfg(target_os = "android")]
+        let response_task = runtime.spawn(Self::handle_response(response_rx, callbacks));
 
         Self {
             device_channel,

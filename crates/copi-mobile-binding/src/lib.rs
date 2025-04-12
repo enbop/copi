@@ -44,7 +44,12 @@ fn init_logger(level: LogLevel) {
 fn init_usb_fd(fd: i32, interface_comm: i32, interface_data: i32) {
     let (request_tx, request_rx) = tokio::sync::mpsc::unbounded_channel();
     let (response_tx, response_rx) = tokio::sync::mpsc::unbounded_channel();
-    let state = AppState::new(request_tx, response_rx);
+
+    #[cfg(not(target_os = "android"))]
+    let state = AppState::new(request_tx, response_rx); // unreachable!();
+
+    #[cfg(target_os = "android")]
+    let state = AppState::new(request_tx, response_rx, &G_TOKIO_RUNTIME);
 
     info!("Connect to USB fd:{}", fd);
     G_TOKIO_RUNTIME.spawn(copi_core::mobile::start_usb_cdc_service(
@@ -52,6 +57,7 @@ fn init_usb_fd(fd: i32, interface_comm: i32, interface_data: i32) {
         interface_comm,
         interface_data,
         request_rx,
+        response_tx,
     ));
     info!("Start API service");
     G_TOKIO_RUNTIME.spawn(copi_core::start_api_service(state));

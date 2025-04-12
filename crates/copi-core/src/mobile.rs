@@ -1,6 +1,6 @@
-use copi_protocol::{CopiRequest, HostMessage};
-use nusb::transfer::Direction;
-use tokio::sync::mpsc::UnboundedReceiver;
+use copi_protocol::{CopiRequest, CopiResponse};
+use nusb::transfer::{Direction, RequestBuffer};
+use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 
 use crate::MAX_USB_PACKET_SIZE;
 
@@ -13,6 +13,7 @@ pub async fn start_usb_cdc_service(
     interface_comm: i32,
     interface_data: i32,
     mut request_rx: UnboundedReceiver<CopiRequest>,
+    response_tx: UnboundedSender<CopiResponse>,
 ) {
     // (android_usbser)
     // Safety: `close()` is not called automatically when the JNI `AutoLocal` of `conn`
@@ -45,21 +46,57 @@ pub async fn start_usb_cdc_service(
             break;
         }
     }
-    let reader = intr_data.bulk_in_queue(addr_r.unwrap());
+    let mut reader = intr_data.bulk_in_queue(addr_r.unwrap());
     let mut writer = intr_data.bulk_out_queue(addr_w.unwrap());
 
-    let mut buf = [0u8; MAX_USB_PACKET_SIZE];
+    // init reader
+    let n_transfers = 8;
+    let transfer_size = 256;
+    while reader.pending() < n_transfers {
+        reader.submit(RequestBuffer::new(transfer_size));
+    }
+
+    let mut request_buf = [0u8; MAX_USB_PACKET_SIZE];
+    let mut response_buf = [0u8; MAX_USB_PACKET_SIZE];
+
+    log::info!("USB CDC service started");
     loop {
-        match request_rx.recv().await {
-            Some(cmd) => {
-                let len = minicbor::len(&cmd);
-                minicbor::encode(&cmd, buf.as_mut()).unwrap();
-                writer.submit(buf[..len].to_vec())
+        tokio::select! {
+            req = request_rx.recv() => {
+                log::info!("Received request: {:?}", req);
+                if let Some(cmd) = req {
+                    let len = minicbor::len(&cmd);
+                    minicbor::encode(&cmd, request_buf.as_mut()).unwrap();
+                    writer.submit(request_buf[..len].to_vec());
+                } else {
+                    log::warn!("Command receiver closed");
+                    break;
+                }
             }
-            None => {
-                log::warn!("Command receiver closed");
-                break;
+            res = reader.next_complete() => {
+                log::info!("Received response: {:?}", res);
+                    if res.status.is_err() {
+                        log::error!("Failed to read response: {:?}", res.status);
+                        break;
+                }
+
+                let response = minicbor::decode::<CopiResponse>(&res.data);
+                match response {
+                    Ok(resp) => {
+                        log::info!("Received response: {:?}", resp);
+                        if response_tx.send(resp).is_err() {
+                            log::warn!("Failed to send response to receiver");
+                            break;
+                        }
+                    }
+                    Err(e) => {
+                        log::error!("Failed to decode response: {:?}", e);
+                    }
+                }
+                reader.submit(RequestBuffer::reuse(res.data, transfer_size))
             }
         }
     }
+
+    log::info!("USB CDC service stopped");
 }
