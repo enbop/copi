@@ -5,7 +5,7 @@ use crate::{AppState, process_common, types::*};
 
 #[axum::debug_handler]
 pub async fn init(
-    State(mut state): State<AppState>,
+    State(state): State<AppState>,
     Json(req): Json<PostPwmInitReq>,
 ) -> Result<Json<CommonResponse>, StatusCode> {
     let msg = HostMessage::PwmInit {
@@ -22,7 +22,7 @@ pub async fn init(
 
 #[axum::debug_handler]
 pub async fn set_duty_cycle_percent(
-    State(mut state): State<AppState>,
+    State(state): State<AppState>,
     Json(req): Json<PostPwmSetDutyCyclePercentReq>,
 ) -> Result<Json<CommonResponse>, StatusCode> {
     let msg = HostMessage::PwmSetDutyCyclePercent {

@@ -14,6 +14,17 @@ use std::io::Write;
 use std::path::PathBuf;
 
 fn main() {
+    let target = concat!(env!("CARGO_MANIFEST_DIR"), "/src/generated");
+    std::fs::create_dir_all(target).unwrap();
+
+    let mut config = femtopb_build::Config::new();
+    config
+        .target(target)
+        .protos(&["../../../copi-proto/host_to_mcu.proto"])
+        .includes(&["../../../copi-proto/"]);
+    config.derive_defmt(true);
+    config.compile().unwrap();
+
     // Put `memory.x` in our output directory and ensure it's
     // on the linker search path.
     let out = &PathBuf::from(env::var_os("OUT_DIR").unwrap());

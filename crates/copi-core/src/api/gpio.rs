@@ -5,7 +5,7 @@ use crate::{AppState, process_common, types::*};
 
 #[axum::debug_handler]
 pub async fn output_init(
-    State(mut state): State<AppState>,
+    State(state): State<AppState>,
     Json(req): Json<PostGpioOutputInitReq>,
 ) -> Result<Json<CommonResponse>, StatusCode> {
     let msg = HostMessage::GpioOutputInit {
@@ -17,7 +17,7 @@ pub async fn output_init(
 
 #[axum::debug_handler]
 pub async fn output_set(
-    State(mut state): State<AppState>,
+    State(state): State<AppState>,
     Json(req): Json<PostGpioOutputSetReq>,
 ) -> Result<Json<CommonResponse>, StatusCode> {
     let msg = HostMessage::GpioOutputSet {

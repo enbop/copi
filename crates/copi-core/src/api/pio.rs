@@ -9,7 +9,7 @@ use crate::{AppState, process_common, types::*};
 
 #[axum::debug_handler]
 pub async fn load_program(
-    State(mut state): State<AppState>,
+    State(state): State<AppState>,
     Json(req): Json<PostPioLoadProgramReq>,
 ) -> Result<Json<CommonResponse>, StatusCode> {
     log::info!("Loading PIO program: {}", req.program);
@@ -43,7 +43,7 @@ pub async fn load_program(
 
 #[axum::debug_handler]
 pub async fn sm_init(
-    State(mut state): State<AppState>,
+    State(state): State<AppState>,
     Json(req): Json<PostPioSmInitReq>,
 ) -> Result<Json<CommonResponse>, StatusCode> {
     let msg = HostMessage::PioSmInit {
@@ -56,7 +56,7 @@ pub async fn sm_init(
 
 #[axum::debug_handler]
 pub async fn sm_set_enabled(
-    State(mut state): State<AppState>,
+    State(state): State<AppState>,
     Json(req): Json<PostPioSmSetEnabledReq>,
 ) -> Result<Json<CommonResponse>, StatusCode> {
     let msg = HostMessage::PioSmSetEnable {
@@ -69,7 +69,7 @@ pub async fn sm_set_enabled(
 
 #[axum::debug_handler]
 pub async fn sm_push(
-    State(mut state): State<AppState>,
+    State(state): State<AppState>,
     Json(req): Json<PostPioSmPushReq>,
 ) -> Result<Json<CommonResponse>, StatusCode> {
     let msg = HostMessage::PioSmPush {
@@ -82,7 +82,7 @@ pub async fn sm_push(
 
 #[axum::debug_handler]
 pub async fn sm_exec_instr(
-    State(mut state): State<AppState>,
+    State(state): State<AppState>,
     Json(req): Json<PostPioSmExecInstrReq>,
 ) -> Result<Json<CommonResponse>, StatusCode> {
     let msg = HostMessage::PioSmExecInstr {

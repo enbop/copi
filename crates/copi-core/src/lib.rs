@@ -1,7 +1,15 @@
+mod api;
+// #[cfg(target_os = "android")]
+pub mod mobile;
+// mod types;
+pub mod generated {
+    include!(concat!(env!("OUT_DIR"), "/copi.rs"));
+}
+
 use std::{
     collections::HashMap,
     net::SocketAddr,
-    sync::{Arc, Mutex, atomic::AtomicU16},
+    sync::{Arc, Mutex, atomic::AtomicU32},
 };
 
 use anyhow::{Context, Result};
@@ -9,7 +17,10 @@ use axum::{
     Router,
     routing::{get, post},
 };
-use copi_protocol::{CopiRequest, CopiResponse, DeviceMessage, HostMessage};
+use generated::request_body::Message;
+use generated::*;
+use prost::Message as _;
+use tokio::io::AsyncReadExt;
 use tokio::{
     io::AsyncWriteExt,
     sync::{
@@ -19,21 +30,16 @@ use tokio::{
     task::JoinHandle,
 };
 
-mod api;
-// #[cfg(target_os = "android")]
-pub mod mobile;
-mod types;
-
 pub const MAX_USB_PACKET_SIZE: usize = 64;
 
-struct NonZeroU16Count(AtomicU16);
+struct NonZeroU32Count(AtomicU32);
 
-impl NonZeroU16Count {
+impl NonZeroU32Count {
     pub fn new() -> Self {
-        NonZeroU16Count(AtomicU16::new(1))
+        NonZeroU32Count(AtomicU32::new(1))
     }
 
-    pub fn next(&self) -> u16 {
+    pub fn next(&self) -> u32 {
         // This operation wraps around on overflow.
         let v = self.0.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
         if v == 0 {
@@ -45,13 +51,13 @@ impl NonZeroU16Count {
 
 #[derive(Clone)]
 struct DeviceChannel {
-    non_zero_count: Arc<NonZeroU16Count>,
-    callbacks: Arc<Mutex<HashMap<u16, oneshot::Sender<DeviceMessage>>>>,
+    non_zero_count: Arc<NonZeroU32Count>,
+    callbacks: Arc<Mutex<HashMap<u32, oneshot::Sender<ResponseBody>>>>,
     request_tx: Arc<UnboundedSender<CopiRequest>>,
 }
 
 impl DeviceChannel {
-    pub async fn fetch(&mut self, msg: HostMessage) -> Result<DeviceMessage> {
+    pub async fn fetch(&self, msg: RequestBody) -> Result<ResponseBody> {
         let id = self.non_zero_count.next();
         let (tx, rx) = oneshot::channel();
         {
@@ -59,7 +65,9 @@ impl DeviceChannel {
             callbacks.insert(id, tx);
         }
 
-        let request = CopiRequest::new(id, msg);
+        let mut request = CopiRequest::default(); // (id, msg);
+        request.request_id = id;
+        request.payload.replace(msg);
         self.request_tx
             .send(request)
             .with_context(|| "Failed to send request")?;
@@ -70,8 +78,9 @@ impl DeviceChannel {
         Ok(res)
     }
 
-    pub fn send(&self, msg: HostMessage) -> Result<()> {
-        let request = CopiRequest::new_without_id(msg);
+    pub fn send(&self, msg: RequestBody) -> Result<()> {
+        let mut request = CopiRequest::default();
+        request.payload.replace(msg);
         self.request_tx
             .send(request)
             .with_context(|| "Failed to send request")?;
@@ -92,7 +101,7 @@ impl AppState {
         #[cfg(target_os = "android")] runtime: &tokio::runtime::Runtime,
     ) -> Self {
         let device_channel = DeviceChannel {
-            non_zero_count: Arc::new(NonZeroU16Count::new()),
+            non_zero_count: Arc::new(NonZeroU32Count::new()),
             callbacks: Arc::new(Mutex::new(HashMap::new())),
             request_tx: Arc::new(request_tx),
         };
@@ -111,18 +120,22 @@ impl AppState {
 
     async fn handle_response(
         mut response_rx: UnboundedReceiver<CopiResponse>,
-        callbacks: Arc<Mutex<HashMap<u16, oneshot::Sender<DeviceMessage>>>>,
+        callbacks: Arc<Mutex<HashMap<u32, oneshot::Sender<ResponseBody>>>>,
     ) {
         while let Some(resp) = response_rx.recv().await {
-            let id = resp.request_id();
+            let id = resp.request_id;
             if id == 0 {
                 log::warn!("Received response with ID 0, ignoring");
                 continue;
             }
+            let Some(payload) = resp.payload else {
+                log::warn!("Received response with no payload, ignoring");
+                continue;
+            };
 
             let mut callbacks = callbacks.lock().unwrap();
             if let Some(sender) = callbacks.remove(&id) {
-                if sender.send(resp.into_message()).is_err() {
+                if sender.send(payload).is_err() {
                     log::warn!("Failed to send response to callback");
                 }
             } else {
@@ -161,20 +174,17 @@ pub async fn start_usb_cdc_service(
     mut request_rx: UnboundedReceiver<CopiRequest>,
     response_tx: UnboundedSender<CopiResponse>,
 ) {
-    use tokio::io::AsyncReadExt;
-
     let mut request_buf = [0u8; MAX_USB_PACKET_SIZE];
     let mut response_buf = [0u8; MAX_USB_PACKET_SIZE];
     loop {
         tokio::select! {
             req = request_rx.recv() => {
-                if let Some(cmd) = req {
-                    let len = minicbor::len(&cmd);
-                    minicbor::encode(&cmd, request_buf.as_mut()).unwrap();
-
-                    match port.write_all(&request_buf[..len]).await {
+                if let Some(req) = req {
+                    // TODO use buf
+                    // TODO check size
+                    match port.write_all(&req.encode_to_vec()).await {
                         Ok(_) => {
-                            log::info!("Sent command: {:?}", cmd);
+                            log::info!("Sent command: {:?}", req);
                         }
                         Err(e) => {
                             log::error!("Failed to send command: {:?}", e);
@@ -193,7 +203,7 @@ pub async fn start_usb_cdc_service(
                             continue;
                         }
 
-                        let response = minicbor::decode::<CopiResponse>(&response_buf[..n]);
+                        let response = CopiResponse::decode(&response_buf[..n]);
                         match response {
                             Ok(resp) => {
                                 log::info!("Received response: {:?}", resp);
@@ -219,18 +229,8 @@ pub async fn start_usb_cdc_service(
 
 pub async fn start_api_service(state: AppState) {
     let app = Router::new()
-        .route("/gpio/output-init", post(api::gpio::output_init))
-        .route("/gpio/output-set", post(api::gpio::output_set))
-        .route("/pwm/init", post(api::pwm::init))
-        .route(
-            "/pwm/set-duty-cycle-percent",
-            post(api::pwm::set_duty_cycle_percent),
-        )
-        .route("/pio/load_program", post(api::pio::load_program))
-        .route("/pio/sm_init", post(api::pio::sm_init))
-        .route("/pio/sm_set_enabled", post(api::pio::sm_set_enabled))
-        .route("/pio/sm_push", post(api::pio::sm_push))
-        .route("/pio/sm_exec_instr", post(api::pio::sm_exec_instr))
+        .route("/fetch", post(api::fetch))
+        .route("/send", post(api::send))
         .route("/playground", get(api::playground::playground))
         .with_state(state);
 

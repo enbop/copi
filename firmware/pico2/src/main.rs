@@ -3,6 +3,7 @@
 #![feature(generic_arg_infer)] // https://blog.rust-lang.org/inside-rust/2025/03/05/inferred-const-generic-arguments.html
 
 mod command;
+mod generated;
 mod peripherals;
 mod pio;
 mod usb;
@@ -20,6 +21,7 @@ use embassy_rp::{
     usb::{Driver, Instance},
 };
 use embassy_usb::class::cdc_acm::CdcAcmClass;
+use femtopb::Message as _;
 use peripherals::PeripheralController;
 use {defmt_rtt as _, panic_probe as _};
 
@@ -61,7 +63,7 @@ async fn main(spawner: Spawner) {
 
 async fn handle_class<'d, T: Instance + 'd>(
     class: &mut CdcAcmClass<'d, Driver<'d, T>>,
-    pc: &mut PeripheralController<'d>,
+    pc: &mut PeripheralController<'static>,
 ) -> Result<(), usb::Disconnected> {
     let mut request_buf = [0; 64];
     let mut response_buf = [0; 64];
@@ -70,13 +72,16 @@ async fn handle_class<'d, T: Instance + 'd>(
         let data = &request_buf[..n];
         info!("data: {} - {:x}", n, data);
 
-        if let Ok(req) = minicbor::decode::<copi_protocol::CopiRequest>(data) {
+        if let Ok(req) = generated::copi::CopiRequest::decode(&mut &data[..]) {
             let response = handle_request(pc, req);
 
-            if response.request_id() != 0 {
-                let len = minicbor::len(&response);
-                minicbor::encode(&response, response_buf.as_mut()).unwrap();
-                class.write_packet(&response_buf[..len]).await?;
+            if response.request_id != 0 {
+                response
+                    .encode(&mut &mut response_buf[..response.encoded_len()])
+                    .unwrap();
+                class
+                    .write_packet(&response_buf[..response.encoded_len()])
+                    .await?;
             }
         };
     }

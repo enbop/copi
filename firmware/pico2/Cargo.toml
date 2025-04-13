@@ -45,8 +45,6 @@ defmt-rtt = "0.4"
 panic-probe = { version = "0.3", features = ["print-defmt"] }
 cortex-m-rt = "0.7.0"
 
-minicbor = { version = "0.26.1", features = ["derive"] }
-copi-protocol = { path = "../../crates/copi-protocol" }
 pio = "0.3.0"
 
 rhai = { version = "1.21.0", optional = true, default-features = false, features = [
@@ -55,6 +53,7 @@ rhai = { version = "1.21.0", optional = true, default-features = false, features
     "only_i32",
 ] }
 embedded-alloc = { version = "0.6.0", optional = true }
+femtopb = "0.8.0"
 
 [profile.release]
 lto = "fat"
@@ -64,3 +63,6 @@ opt-level = "z"
 [profile.dev]
 lto = true
 opt-level = "z"
+
+[build-dependencies]
+femtopb-build = "0.8.0"

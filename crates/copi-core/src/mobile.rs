@@ -1,8 +1,8 @@
-use copi_protocol::{CopiRequest, CopiResponse};
-use nusb::transfer::{Direction, RequestBuffer};
-use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
-
 use crate::MAX_USB_PACKET_SIZE;
+use crate::generated::*;
+use nusb::transfer::{Direction, RequestBuffer};
+use prost::Message as _;
+use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 
 #[allow(unreachable_code)]
 #[allow(unused_variables)]
@@ -64,10 +64,10 @@ pub async fn start_usb_cdc_service(
         tokio::select! {
             req = request_rx.recv() => {
                 log::info!("Received request: {:?}", req);
+                // TODO use buf
+                // TODO check size
                 if let Some(cmd) = req {
-                    let len = minicbor::len(&cmd);
-                    minicbor::encode(&cmd, request_buf.as_mut()).unwrap();
-                    writer.submit(request_buf[..len].to_vec());
+                    writer.submit(cmd.encode_to_vec().to_vec());
                 } else {
                     log::warn!("Command receiver closed");
                     break;
@@ -80,7 +80,7 @@ pub async fn start_usb_cdc_service(
                         break;
                 }
 
-                let response = minicbor::decode::<CopiResponse>(&res.data);
+                let response = CopiResponse::decode(&response_buf[..]);
                 match response {
                     Ok(resp) => {
                         log::info!("Received response: {:?}", resp);
