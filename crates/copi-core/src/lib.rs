@@ -57,7 +57,7 @@ struct DeviceChannel {
 }
 
 impl DeviceChannel {
-    pub async fn fetch(&self, msg: RequestBody) -> Result<ResponseBody> {
+    pub async fn query(&self, msg: RequestBody) -> Result<ResponseBody> {
         let id = self.non_zero_count.next();
         let (tx, rx) = oneshot::channel();
         {
@@ -229,8 +229,8 @@ pub async fn start_usb_cdc_service(
 
 pub async fn start_api_service(state: AppState) {
     let app = Router::new()
-        .route("/fetch", post(api::fetch))
-        .route("/send", post(api::send))
+        .route("/query", post(api::query))
+        .route("/command", post(api::command))
         .route("/playground", get(api::playground::playground))
         .with_state(state);
 

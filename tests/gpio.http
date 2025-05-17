@@ -1,7 +1,7 @@
 @BASE_URL=http://127.0.0.1:8899
 
 ### init gpio out
-POST {{BASE_URL}}/fetch
+POST {{BASE_URL}}/query
 content-type: application/json
 
 {
@@ -14,7 +14,7 @@ content-type: application/json
 }
 
 ### set false value 
-POST {{BASE_URL}}/fetch
+POST {{BASE_URL}}/query
 content-type: application/json
 
 {
@@ -28,7 +28,7 @@ content-type: application/json
 
 
 ### set true value 
-POST {{BASE_URL}}/fetch
+POST {{BASE_URL}}/query
 content-type: application/json
 
 {
