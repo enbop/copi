@@ -1,9 +1,10 @@
 use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
-use copi_core::{AppState, open_copi_serial, start_api_service, start_usb_cdc_service};
 
+mod daemon;
 mod flash;
+mod query;
 mod utils;
 
 #[derive(Parser, Debug)]
@@ -24,6 +25,15 @@ enum Commands {
         #[arg(value_name = "PICO DEVICE")]
         pico: PathBuf,
     },
+
+    Daemon,
+
+    Query(Query),
+}
+
+#[derive(Debug, Parser)]
+struct Query {
+    args: Vec<String>,
 }
 
 #[tokio::main]
@@ -44,14 +54,14 @@ async fn main() {
                 flash::flash(pico);
                 return;
             }
+            Commands::Daemon => {
+                daemon::start_daemon().await;
+                return;
+            }
+            Commands::Query(q) => {
+                query::start_query(q.args).await;
+                return;
+            }
         }
     }
-
-    let (request_tx, request_rx) = tokio::sync::mpsc::unbounded_channel();
-    let (response_tx, response_rx) = tokio::sync::mpsc::unbounded_channel();
-    let state = AppState::new(request_tx, response_rx);
-
-    let port = open_copi_serial();
-    tokio::spawn(start_api_service(state));
-    start_usb_cdc_service(port, request_rx, response_tx).await;
 }
