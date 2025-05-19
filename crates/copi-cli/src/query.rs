@@ -1,6 +1,9 @@
-use copi_core::generated::request_body::Message;
+use copi_core::generated::RequestBody;
+use copi_core::generated::ResponseBody;
+use copi_core::generated::request_body;
+use prost::Message;
 
-fn parse_message(args: Vec<String>) -> Result<Message, serde_json::Error> {
+fn parse_message(args: Vec<String>) -> Result<request_body::Message, serde_json::Error> {
     let type_name = &args[0];
     let mut map = serde_json::Map::new();
 
@@ -38,8 +41,24 @@ pub async fn start_query(args: Vec<String>) {
         panic!("Failed to parse message: {}", e);
     });
 
-    println!(
-        "Parsed request body: {:?}",
-        serde_json::to_string(&parsed).unwrap()
-    );
+    let mut request_body = RequestBody::default();
+    request_body.message = Some(parsed);
+    let data = request_body.encode_to_vec();
+
+    // reqwest send request_body protoful message
+    let client = reqwest::Client::new();
+    let response = client
+        .post("http://localhost:8899/query")
+        .header("Content-Type", "application/protobuf")
+        .body(data)
+        .send()
+        .await
+        .expect("Failed to send request");
+    if !response.status().is_success() {
+        panic!("Request failed with status: {}", response.status());
+    }
+    let response_bytes = response.bytes().await.expect("Failed to read response");
+    let response_body =
+        ResponseBody::decode(response_bytes.as_ref()).expect("Failed to decode response body");
+    println!("Response: {:?}", response_body);
 }
