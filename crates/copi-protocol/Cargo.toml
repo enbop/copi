@@ -1,7 +1,0 @@
-[package]
-name = "copi-protocol"
-version = "0.1.0"
-edition = "2024"
-
-[dependencies]
-minicbor = { version = "0.26.1", features = ["derive"] }

@@ -2,7 +2,6 @@
 resolver = "2"
 members = [
     "crates/copi-core",
-    "crates/copi-protocol",
     "crates/copi-mobile-binding",
     "crates/uniffi-bindgen",
     "crates/copi-cli",
