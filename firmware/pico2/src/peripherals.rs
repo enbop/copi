@@ -8,7 +8,7 @@ use embassy_rp::{
 };
 
 use crate::{
-    generated::copi::ResponseBody,
+    generated::copi::{Common, ResponseBody, ResponseCommonErrorCode, response_body},
     pio::PioControl,
     pio_run_with_program, pio_sm_invoke, pio_sm_run, sm_invoke, sm_run,
     utils::{Slot, get_anypin_unchecked},
@@ -48,17 +48,32 @@ pub struct PeripheralController<'d> {
     pios: PioControl<'d>,
 }
 
-// #[macro_export]
-// macro_rules! check_pin_state {
-//     ($pin:expr, $state:expr) => {
-//         if $pin.state != $state {
-//             return DeviceMessage::Common {
-//                 error: DeviceCommonErrorCode::WrongPinState as _,
-//                 data: $pin.state as _,
-//             };
-//         }
-//     };
-// }
+#[macro_export]
+macro_rules! check_pin_state {
+    ($pin:expr, $state:expr) => {
+        if $pin.state != $state {
+            return ResponseBody {
+                message: Some(response_body::Message::Common(Common {
+                    error: ResponseCommonErrorCode::WrongPinState as _,
+                    data: $pin.state as _,
+                    ..Default::default()
+                })),
+                ..Default::default()
+            };
+        }
+    };
+}
+
+#[inline(always)]
+fn success_response<'a>(value: u64) -> ResponseBody<'a> {
+    ResponseBody {
+        message: Some(response_body::Message::Common(Common {
+            data: value,
+            ..Default::default()
+        })),
+        ..Default::default()
+    }
+}
 
 impl<'d> PeripheralController<'d> {
     pub fn new() -> Self {
@@ -77,7 +92,7 @@ impl<'d> PeripheralController<'d> {
 
     pub fn gpio_output_init(&mut self, pin_num: usize, value: bool) -> ResponseBody {
         let pin = &mut self.pins[pin_num];
-        // check_pin_state!(pin, PinState::None);
+        check_pin_state!(pin, PinState::None);
 
         let pin_cl = unsafe { get_anypin_unchecked(&self.embassy_rp, pin_num as _) };
         let output = Output::new(
@@ -92,13 +107,12 @@ impl<'d> PeripheralController<'d> {
 
         pin.resource_index = index;
         pin.state = PinState::GpioOutput;
-        // DeviceMessage::common(value as u64)
-        Default::default()
+        success_response(value as u64)
     }
 
     pub fn gpio_output_set(&mut self, pin_num: usize, value: bool) -> ResponseBody {
         let pin = &mut self.pins[pin_num];
-        // check_pin_state!(pin, PinState::GpioOutput);
+        check_pin_state!(pin, PinState::GpioOutput);
 
         let output = &mut self.gpio_outputs.get_mut(pin.resource_index);
         assert!(output.is_some());
@@ -107,8 +121,7 @@ impl<'d> PeripheralController<'d> {
         } else {
             output.as_mut().unwrap().set_low();
         }
-        // DeviceMessage::common(value as u64)
-        Default::default()
+        success_response(value as u64)
     }
 
     // TODO: Uncomment and implement these modules as needed

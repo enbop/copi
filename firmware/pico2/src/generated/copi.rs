@@ -41,8 +41,6 @@ pub mod request_body {
 #[derive(::defmt::Format)]
 #[derive(Clone, Copy, PartialEq, ::femtopb::Message)]
 pub struct GetCpuFrequency<'a> {
-    #[femtopb(uint32, tag = 1)]
-    pub freq: u32,
     #[femtopb(unknown_fields)]
     pub unknown_fields: femtopb::UnknownFields<'a>,
 }
@@ -62,7 +60,7 @@ pub struct GpioOutputSet<'a> {
     #[femtopb(uint32, tag = 1)]
     pub pin: u32,
     #[femtopb(bool, tag = 2)]
-    pub state: bool,
+    pub value: bool,
     #[femtopb(unknown_fields)]
     pub unknown_fields: femtopb::UnknownFields<'a>,
 }

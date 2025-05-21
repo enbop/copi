@@ -1,0 +1,3 @@
+[submodule "copi-proto"]
+	path = copi-proto
+	url = https://github.com/enbop/copi-proto.git

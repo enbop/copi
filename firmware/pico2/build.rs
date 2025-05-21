@@ -20,8 +20,8 @@ fn main() {
     let mut config = femtopb_build::Config::new();
     config
         .target(target)
-        .protos(&["../../../copi-proto/host_to_mcu.proto"])
-        .includes(&["../../../copi-proto/"]);
+        .protos(&["../../copi-proto/host_to_mcu.proto"])
+        .includes(&["../../copi-proto/"]);
     config.derive_defmt(true);
     config.compile().unwrap();
 

@@ -5,8 +5,8 @@ fn main() {
     // config.field_attribute("skip_response", "#[serde(default)]");
     config
         .compile_protos(
-            &["../../../copi-proto/host_to_mcu.proto"],
-            &["../../../copi-proto"],
+            &["../../copi-proto/host_to_mcu.proto"],
+            &["../../copi-proto"],
         )
         .unwrap();
 }

@@ -26,11 +26,11 @@ pub fn handle_request<'d>(
         }
         Message::GpioOutputSet(GpioOutputSet {
             pin,
-            state,
+            value,
             unknown_fields: _,
         }) => {
-            info!("GpioOutputSet: {} {}", pin, state);
-            pc.gpio_output_set(pin as _, state)
+            info!("GpioOutputSet: {} {}", pin, value);
+            pc.gpio_output_set(pin as _, value)
         }
         // TODO: Uncomment and implement these modules as needed
         // PwmInit {
